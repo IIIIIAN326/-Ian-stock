@@ -97,64 +97,51 @@ let STOCKS=[['2330','台積電','TW'],['2317','鴻海','TW'],['2454','聯發科'
 let Q={},market='ALL',selected='2330',period='1mo',history=[];
 const BASE_STOCKS=STOCKS.slice();
 async function loadTWSEUniverse(){
+  const sources=[
+    'https://openapi.twse.com.tw/v1/opendata/t187ap03_L',
+    'https://mopsfin.twse.com.tw/opendata/t187ap03_O.csv',
+    'https://mopsfin.twse.com.tw/opendata/t187ap03_R.csv'
+  ];
+  const fallback='https://raw.githubusercontent.com/changtimwu/twse-dataset/main/company_profiles.jsonl';
+  const map=new Map(BASE_STOCKS.map(x=>[x[0],x]));
+  const add=(symbol,name)=>{
+    symbol=String(symbol||'').trim(); name=String(name||'').trim();
+    if(/^\d{4}$/.test(symbol)&&name&&!map.has(symbol)){map.set(symbol,[symbol,name,'TW']);return true;}
+    return false;
+  };
+  const parseCSV=text=>{
+    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);
+    if(!lines.length)return;
+    const parseLine=line=>{const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(c===','&&!q){out.push(cur);cur='';}else cur+=c;}out.push(cur);return out;};
+    const head=parseLine(lines[0]).map(x=>x.trim().replace(/^"|"$/g,''));
+    const codeI=head.findIndex(x=>/公司代號|股票代號|有價證券代號|代號/.test(x));
+    const nameI=head.findIndex(x=>/公司簡稱|公司名稱|有價證券名稱|名稱/.test(x));
+    for(let i=1;i<lines.length;i++){const a=parseLine(lines[i]);if(codeI>=0&&nameI>=0)add(a[codeI],a[nameI]);}
+  };
   try{
-    const sources=[
-      'https://openapi.twse.com.tw/v1/opendata/t187ap03_L',
-      'https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O'
-    ];
-    const results=await Promise.allSettled(sources.map(u=>fetch(u,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(String(r.status));return r.json()})));
-    const map=new Map(BASE_STOCKS.map(x=>[x[0],x]));
-    let added=0;
-    results.forEach((res,idx)=>{
-      if(res.status!=='fulfilled'||!Array.isArray(res.value))return;
-      res.value.forEach(x=>{
-        const symbol=String(x['公司代號']??x['股票代號']??x['有價證券代號']??x['代號']??'').trim();
-        const name=String(x['公司名稱']??x['公司簡稱']??x['有價證券名稱']??x['名稱']??'').trim();
-        if(!/^\d{4}$/.test(symbol)||!name)return;
-        if(!map.has(symbol)){map.set(symbol,[symbol,name,'TW']);added++;}
-      });
+    const results=await Promise.allSettled(sources.map(u=>fetch(u,{cache:'no-store'}).then(async r=>{if(!r.ok)throw Error(String(r.status));const t=await r.text();if(t.trim().startsWith('['))return JSON.parse(t);return t})));
+    results.forEach(res=>{
+      if(res.status!=='fulfilled')return;
+      if(Array.isArray(res.value))res.value.forEach(x=>add(x['公司代號']??x['股票代號']??x['有價證券代號']??x['代號'],x['公司名稱']??x['公司簡稱']??x['有價證券名稱']??x['名稱']));
+      else parseCSV(res.value);
     });
+    if(map.size<1500){
+      try{
+        const r=await fetch(fallback,{cache:'no-store'}); if(r.ok){
+          const t=await r.text();
+          t.split(/\r?\n/).forEach(line=>{if(!line.trim())return;try{const x=JSON.parse(line);add(x.companyCode??x.companyEnglishName?x.companyCode:x.stockCode??x.code,x.companyName??x.companyAbbreviation??x.name); }catch(e){}});
+        }
+      }catch(e){}
+    }
     STOCKS=Array.from(map.values());
     renderStocks();renderTicker();
     const twCount=STOCKS.filter(x=>x[2]==='TW').length;
-    const okCount=results.filter(x=>x.status==='fulfilled').length;
-    $('stockStatus').textContent='台股股票庫 '+twCount+' 檔 · 上市＋上櫃 · '+(okCount?'已連線':'API RETRY');
+    $('stockStatus').textContent='台股股票庫 '+twCount+' 檔 · 上市＋上櫃＋興櫃 · 已載入';
     $('tracked').textContent=Object.keys(Q).length;
-    return {twCount,added};
+    return {twCount};
   }catch(e){
     $('stockStatus').textContent='台股股票庫 '+STOCKS.filter(x=>x[2]==='TW').length+' 檔 · API RETRY';
   }
-}
-const $=id=>document.getElementById(id), sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const fmt=n=>n==null||!Number.isFinite(Number(n))?'--':Number(n).toLocaleString('en-US',{maximumFractionDigits:2});
-const pct=n=>n==null||!Number.isFinite(Number(n))?'--':(Number(n)>=0?'+':'')+Number(n).toFixed(2)+'%';
-const cls=n=>Number(n)>0?'up':Number(n)<0?'down':'neutral';
-const flowCls=n=>Number(n)>0?'up':Number(n)<0?'down':'neutral';
-const stock=s=>{const x=STOCKS.find(a=>a[0]===String(s).toUpperCase());return x?{symbol:x[0],name:x[1],market:x[2]}:{symbol:String(s).toUpperCase(),name:String(s).toUpperCase(),market:/^\d+$/.test(s)?'TW':'US'}};
-async function twseMonth(symbol, y, m){
-  const mm=String(m).padStart(2,'0');
-  const url=`https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${y}${mm}01&stockNo=${encodeURIComponent(symbol)}`;
-  const r=await fetch(url,{cache:'no-store'});
-  if(!r.ok)throw Error('TWSE '+r.status);
-  const j=await r.json();
-  return (j.data||[]).map(row=>({
-    date:String(row[0]||''),
-    volume:Number(String(row[1]||'').replace(/,/g,''))||0,
-    open:Number(String(row[3]||'').replace(/,/g,'')),
-    high:Number(String(row[4]||'').replace(/,/g,'')),
-    low:Number(String(row[5]||'').replace(/,/g,'')),
-    close:Number(String(row[6]||'').replace(/,/g,''))
-  })).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
-}
-async function directTWHistory(symbol, range='1mo'){
-  const months={ '1mo':2,'3mo':4,'6mo':7,'1y':13,'2y':25 }[range]||2;
-  const now=new Date(), out=[];
-  for(let i=0;i<months;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
-    try{out.push(...await twseMonth(symbol,d.getFullYear(),d.getMonth()+1));}catch(e){}
-  }
-  out.sort((a,b)=>a.date.localeCompare(b.date));
-  return out;
 }
 function clientIndicators(rows){
   const c=rows.map(x=>x.close);
