@@ -117,9 +117,18 @@ function renderStocks(){const a=STOCKS.filter(s=>market==='ALL'||s[2]===market);
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
-async function loadMarket(){try{const j=await api('/api/market');const a=j.data||[];const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);if(tw){$('heroTW').textContent=fmt(tw.price)}if(sp){$('heroUS').textContent=fmt(sp.price)}}catch(e){}}
+async function loadMarket(){const syms=['^TWII','^GSPC','^IXIC','^DJI'];const rs=await Promise.allSettled(syms.map(s=>yahooChart(s,'5d','1d')));rs.forEach(x=>{if(x.status!=='fulfilled')return;const q=x.value;const map={'^TWII':['taiex','taiexCh'],'^GSPC':['sp','spCh'],'^IXIC':['nasdaq','nasdaqCh'],'^DJI':['dow','dowCh']}[q.symbol];if(map)setMarket(map[0],map[1],q);if(q.symbol==='^TWII')$('heroTW').textContent=fmt(q.price);if(q.symbol==='^GSPC')$('heroUS').textContent=fmt(q.price);});}
 function setMarket(v,c,q){if(!q)return;$(v).textContent=fmt(q.price);$(c).textContent=pct(q.changePct);$(c).className=cls(q.changePct);}
-async function loadQuotes(){try{const symbols=STOCKS.map(x=>x[0]).join(',');const j=await api('/api/quotes?symbols='+encodeURIComponent(symbols));(j.data||[]).forEach(q=>Q[q.symbol]=q);renderStocks();renderBread();renderTicker();renderWatch();}catch(e){}}
+async function loadQuotes(){
+  Q={}; renderStocks();
+  const syms=STOCKS.map(x=>x[0]);
+  for(let i=0;i<syms.length;i+=6){
+    const batch=syms.slice(i,i+6);
+    const rs=await Promise.allSettled(batch.map(s=>yahooChart(s,'1mo','1d')));
+    rs.forEach(x=>{if(x.status==='fulfilled'&&x.value&&Number.isFinite(Number(x.value.price)))Q[x.value.symbol]=x.value;});
+    renderStocks();renderBread();renderTicker();renderWatch();
+  }
+}
 function renderWatch(){const a=JSON.parse(localStorage.getItem('IAN_WATCH')||'["2330","NVDA"]');$('watchList').innerHTML=a.length?a.map(s=>row(stock(s))).join(''):'<div class="empty">尚未加入自選股</div>';}
 function toggleWatch(s){let a=JSON.parse(localStorage.getItem('IAN_WATCH')||'[]');a=a.includes(s)?a.filter(x=>x!==s):a.concat(s);localStorage.setItem('IAN_WATCH',JSON.stringify(a));renderWatch();}
 function go(p,b){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(p+'Page').classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));if(b)b.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});if(p==='watch')renderWatch();}
