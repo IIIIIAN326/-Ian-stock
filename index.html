@@ -3,40 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090d">
+
 <title>IAN STOCK</title>
 
 <style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
 
 html,body{
   margin:0;
   padding:0;
   background:#07090d;
   color:#f5f7fa;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",
-  "Noto Sans TC",Arial,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,
+  "SF Pro Display","Noto Sans TC",Arial,sans-serif;
 }
 
-body{padding-bottom:100px}
+body{
+  padding-bottom:105px;
+}
 
-button,input{font:inherit}
+button,input,select{
+  font:inherit;
+}
 
-button{cursor:pointer}
+button{
+  cursor:pointer;
+}
+
+button:active{
+  transform:scale(.97);
+}
 
 .app{
   width:100%;
   max-width:900px;
   margin:auto;
-  padding:18px 16px 30px;
+  padding:16px 15px 30px;
 }
 
-/* Header */
+/* ================= HEADER ================= */
 
 .header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:18px;
+  margin:5px 2px 17px;
 }
 
 .logo{
@@ -49,18 +64,19 @@ button{cursor:pointer}
   display:flex;
   align-items:center;
   gap:6px;
+  color:#55df91;
   font-size:11px;
-  color:#65e49c;
+  font-weight:700;
 }
 
 .live-dot{
   width:7px;
   height:7px;
   border-radius:50%;
-  background:#36d982;
+  background:#35d982;
 }
 
-/* Search */
+/* ================= SEARCH ================= */
 
 .search-box{
   display:flex;
@@ -68,14 +84,14 @@ button{cursor:pointer}
   gap:10px;
   background:#11151d;
   border:1px solid #252b35;
-  border-radius:16px;
+  border-radius:15px;
   padding:0 15px;
-  margin-bottom:17px;
+  margin-bottom:14px;
 }
 
 .search-icon{
-  color:#858d99;
-  font-size:20px;
+  color:#858e9b;
+  font-size:21px;
 }
 
 .search{
@@ -89,19 +105,19 @@ button{cursor:pointer}
 }
 
 .search::placeholder{
-  color:#6c7480;
+  color:#69727f;
 }
 
-/* Market switch */
+/* ================= MARKET ================= */
 
 .market-switch{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:8px;
+  gap:7px;
   background:#11151d;
   padding:5px;
   border-radius:14px;
-  margin-bottom:20px;
+  margin-bottom:18px;
 }
 
 .market-btn{
@@ -110,7 +126,7 @@ button{cursor:pointer}
   color:#747d89;
   padding:12px;
   border-radius:10px;
-  font-weight:800;
+  font-weight:850;
 }
 
 .market-btn.active{
@@ -118,160 +134,162 @@ button{cursor:pointer}
   color:#080a0f;
 }
 
-/* Section */
+/* ================= SECTION ================= */
 
 .section-head{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin:22px 0 11px;
+  margin:20px 1px 10px;
 }
 
 .section-title{
   font-size:18px;
-  font-weight:850;
+  font-weight:900;
 }
 
 .section-more{
-  color:#7e8794;
-  font-size:12px;
+  color:#78818e;
+  font-size:11px;
 }
 
-/* Stock card */
+/* ================= MARKET PULSE ================= */
+
+.pulse-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:8px;
+}
+
+.pulse{
+  background:#10141b;
+  border:1px solid #202630;
+  border-radius:14px;
+  padding:13px;
+}
+
+.pulse-name{
+  color:#7c8592;
+  font-size:11px;
+}
+
+.pulse-value{
+  margin-top:5px;
+  font-size:17px;
+  font-weight:850;
+}
+
+.pulse-change{
+  margin-top:3px;
+  font-size:11px;
+}
+
+/* ================= STOCK ================= */
 
 .stock-card{
   background:#10141b;
   border:1px solid #202630;
-  border-radius:17px;
-  padding:16px;
-  margin-bottom:9px;
-  transition:.15s;
+  border-radius:14px;
+  padding:12px 14px;
+  margin-bottom:7px;
 }
 
-.stock-card:active{
-  transform:scale(.985);
-}
-
-.stock-row{
+.stock-main{
   display:flex;
-  justify-content:space-between;
   align-items:center;
+  justify-content:space-between;
+  gap:10px;
 }
 
-.stock-left{
+.stock-info{
+  flex:1;
   min-width:0;
 }
 
 .stock-symbol{
-  font-size:17px;
-  font-weight:850;
+  font-size:16px;
+  font-weight:900;
 }
 
 .stock-name{
-  color:#7d8693;
+  color:#7c8592;
   font-size:12px;
-  margin-top:4px;
+  margin-top:3px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-.stock-right{
+.stock-price-area{
   text-align:right;
+  min-width:100px;
 }
 
 .stock-price{
-  font-size:19px;
-  font-weight:850;
+  font-size:17px;
+  font-weight:900;
 }
 
 .stock-change{
   font-size:12px;
-  margin-top:4px;
+  margin-top:3px;
 }
 
-.up{color:#42d392}
-.down{color:#ff6575}
-.gray{color:#747d89}
-
-/* Empty */
-
-.empty{
-  text-align:center;
-  color:#68717e;
-  padding:55px 20px;
-  line-height:1.7;
+.up{
+  color:#43d392;
 }
 
-/* Refresh */
-
-.refresh{
-  margin-top:18px;
+.down{
+  color:#ff6877;
 }
 
-.refresh-btn{
+.gray{
+  color:#737c88;
+}
+
+.stock-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:1px;
+}
+
+.star-btn{
+  border:0;
+  background:transparent;
+  color:#818b98;
+  font-size:20px;
+  padding:1px 4px;
+}
+
+/* ================= BUTTON ================= */
+
+.primary-btn{
   width:100%;
   border:0;
-  border-radius:15px;
   background:#f5f7fa;
   color:#080a0f;
-  padding:15px;
-  font-weight:850;
+  border-radius:14px;
+  padding:14px;
+  font-weight:900;
+}
+
+.secondary-btn{
+  border:1px solid #29303b;
+  background:#131821;
+  color:#e8ebef;
+  border-radius:12px;
+  padding:11px 13px;
+  font-weight:700;
 }
 
 .cache-text{
   text-align:center;
-  color:#626b77;
-  font-size:11px;
-  margin-top:9px;
+  color:#606975;
+  font-size:10px;
+  margin-top:8px;
 }
 
-/* Portfolio */
-
-.balance-card{
-  background:linear-gradient(145deg,#151a23,#0d1016);
-  border:1px solid #252b35;
-  border-radius:20px;
-  padding:21px;
-}
-
-.balance-label{
-  color:#818a97;
-  font-size:12px;
-}
-
-.balance{
-  font-size:31px;
-  font-weight:900;
-  margin-top:7px;
-}
-
-.balance-sub{
-  margin-top:7px;
-  font-size:12px;
-  color:#5fd997;
-}
-
-/* AI */
-
-.ai-card{
-  background:#11151d;
-  border:1px solid #242a34;
-  border-radius:18px;
-  padding:18px;
-  margin-bottom:10px;
-}
-
-.ai-title{
-  font-size:17px;
-  font-weight:850;
-}
-
-.ai-desc{
-  color:#818a96;
-  font-size:13px;
-  line-height:1.7;
-  margin-top:9px;
-}
-
-/* Pages */
+/* ================= PAGES ================= */
 
 .page{
   display:none;
@@ -281,7 +299,294 @@ button{cursor:pointer}
   display:block;
 }
 
-/* Bottom navigation */
+/* ================= DETAIL ================= */
+
+.detail-header{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  margin-bottom:15px;
+}
+
+.back-btn{
+  width:42px;
+  height:42px;
+  border:0;
+  border-radius:12px;
+  background:#151a22;
+  color:white;
+  font-size:27px;
+}
+
+.detail-symbol{
+  font-size:22px;
+  font-weight:900;
+}
+
+.detail-name{
+  color:#7b8490;
+  font-size:12px;
+  margin-top:2px;
+}
+
+.detail-card{
+  background:linear-gradient(145deg,#151a23,#0d1016);
+  border:1px solid #252c36;
+  border-radius:20px;
+  padding:20px;
+}
+
+.detail-price{
+  font-size:35px;
+  font-weight:900;
+}
+
+.detail-change{
+  margin-top:6px;
+  font-size:14px;
+  font-weight:800;
+}
+
+/* ================= CHART ================= */
+
+.chart-tabs{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:5px;
+  margin:13px 0 8px;
+}
+
+.chart-tab{
+  border:0;
+  background:#131821;
+  color:#737c88;
+  padding:10px 3px;
+  border-radius:9px;
+  font-size:11px;
+  font-weight:800;
+}
+
+.chart-tab.active{
+  background:#f5f7fa;
+  color:#080a0f;
+}
+
+.chart-box{
+  height:235px;
+  background:#0d1117;
+  border:1px solid #202630;
+  border-radius:16px;
+  position:relative;
+  overflow:hidden;
+}
+
+.chart-grid{
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(#1b2028 1px,transparent 1px),
+    linear-gradient(90deg,#1b2028 1px,transparent 1px);
+  background-size:25% 25%;
+  opacity:.6;
+}
+
+.chart-svg{
+  position:absolute;
+  inset:20px 10px 35px;
+  width:calc(100% - 20px);
+  height:calc(100% - 55px);
+}
+
+.chart-placeholder{
+  position:absolute;
+  bottom:10px;
+  left:0;
+  right:0;
+  text-align:center;
+  color:#606975;
+  font-size:10px;
+}
+
+/* ================= INDICATORS ================= */
+
+.indicator-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:7px;
+}
+
+.indicator{
+  background:#10141b;
+  border:1px solid #202630;
+  border-radius:13px;
+  padding:13px;
+}
+
+.indicator-label{
+  color:#747d89;
+  font-size:10px;
+}
+
+.indicator-value{
+  font-size:16px;
+  font-weight:900;
+  margin-top:5px;
+}
+
+/* ================= AI ================= */
+
+.ai-card{
+  background:#11151d;
+  border:1px solid #252b35;
+  border-radius:16px;
+  padding:15px;
+  margin-bottom:8px;
+}
+
+.ai-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.ai-title{
+  font-size:15px;
+  font-weight:900;
+}
+
+.ai-tag{
+  font-size:9px;
+  color:#6fe2a2;
+  border:1px solid #28543d;
+  padding:3px 7px;
+  border-radius:20px;
+}
+
+.ai-desc{
+  color:#818a96;
+  font-size:12px;
+  line-height:1.7;
+  margin-top:7px;
+}
+
+/* ================= PORTFOLIO ================= */
+
+.balance-card{
+  background:linear-gradient(145deg,#151a23,#0d1016);
+  border:1px solid #252b35;
+  border-radius:20px;
+  padding:20px;
+}
+
+.balance-label{
+  color:#808996;
+  font-size:11px;
+}
+
+.balance{
+  font-size:30px;
+  font-weight:900;
+  margin-top:6px;
+}
+
+.balance-sub{
+  color:#58db94;
+  font-size:11px;
+  margin-top:6px;
+}
+
+.portfolio-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:7px;
+  margin-top:10px;
+}
+
+.port-stat{
+  background:#10141b;
+  border:1px solid #202630;
+  border-radius:13px;
+  padding:13px;
+}
+
+.port-label{
+  color:#747d89;
+  font-size:10px;
+}
+
+.port-value{
+  margin-top:5px;
+  font-size:16px;
+  font-weight:850;
+}
+
+/* ================= FORMS ================= */
+
+.form{
+  background:#10141b;
+  border:1px solid #202630;
+  border-radius:16px;
+  padding:15px;
+}
+
+.form-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.form-label{
+  color:#77808d;
+  font-size:10px;
+  margin-bottom:5px;
+}
+
+.form-input,
+.form-select{
+  width:100%;
+  border:1px solid #292f39;
+  background:#0c1016;
+  color:white;
+  border-radius:10px;
+  padding:11px;
+  outline:0;
+}
+
+/* ================= EMPTY ================= */
+
+.empty{
+  text-align:center;
+  color:#68717e;
+  padding:45px 18px;
+  line-height:1.7;
+}
+
+/* ================= ALERT ================= */
+
+.alert{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  background:#10141b;
+  border:1px solid #202630;
+  border-radius:13px;
+  padding:13px;
+  margin-bottom:7px;
+}
+
+.alert-title{
+  font-weight:800;
+  font-size:13px;
+}
+
+.alert-desc{
+  color:#747d89;
+  font-size:10px;
+  margin-top:3px;
+}
+
+/* ================= BOTTOM ================= */
 
 .bottom-nav{
   position:fixed;
@@ -289,39 +594,38 @@ button{cursor:pointer}
   left:0;
   right:0;
   bottom:0;
-  padding:8px 9px calc(8px + env(safe-area-inset-bottom));
-  background:rgba(8,10,14,.96);
+  padding:7px 8px calc(7px + env(safe-area-inset-bottom));
+  background:rgba(8,10,14,.97);
   backdrop-filter:blur(20px);
   -webkit-backdrop-filter:blur(20px);
   border-top:1px solid #222731;
 }
 
 .nav-inner{
-  max-width:680px;
+  max-width:700px;
   margin:auto;
   display:grid;
   grid-template-columns:repeat(5,1fr);
-  gap:4px;
+  gap:3px;
 }
 
 .nav-btn{
-  min-height:66px;
+  min-height:63px;
   border:0;
-  border-radius:14px;
+  border-radius:13px;
   background:transparent;
   color:#707986;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:6px;
-  font-size:11px;
-  font-weight:700;
+  gap:5px;
+  font-size:10px;
+  font-weight:800;
 }
 
 .nav-icon{
-  font-size:21px;
-  line-height:1;
+  font-size:20px;
 }
 
 .nav-btn.active{
@@ -329,9 +633,10 @@ button{cursor:pointer}
   color:white;
 }
 
-/* Desktop */
+/* ================= DESKTOP ================= */
 
 @media(min-width:700px){
+
   .app{
     padding-top:30px;
   }
@@ -340,10 +645,11 @@ button{cursor:pointer}
     left:50%;
     right:auto;
     transform:translateX(-50%);
-    width:680px;
+    width:700px;
     border:1px solid #252b35;
     border-radius:18px 18px 0 0;
   }
+
 }
 </style>
 </head>
@@ -352,20 +658,28 @@ button{cursor:pointer}
 
 <div class="app">
 
-<!-- ================= HOME ================= -->
+<!-- ================================================= -->
+<!-- HOME -->
+<!-- ================================================= -->
 
 <section id="homePage" class="page active">
 
   <div class="header">
-    <div class="logo">IAN STOCK</div>
+
+    <div class="logo">
+      IAN STOCK
+    </div>
 
     <div class="live">
       <span class="live-dot"></span>
       MARKET
     </div>
+
   </div>
 
+
   <div class="search-box">
+
     <span class="search-icon">⌕</span>
 
     <input
@@ -374,7 +688,9 @@ button{cursor:pointer}
       placeholder="搜尋股票代號或公司名稱"
       oninput="searchHome()"
     >
+
   </div>
+
 
   <div class="market-switch">
 
@@ -396,7 +712,94 @@ button{cursor:pointer}
 
   </div>
 
+
   <div class="section-head">
+
+    <div class="section-title">
+      市場脈動
+    </div>
+
+    <div class="section-more">
+      MARKET PULSE
+    </div>
+
+  </div>
+
+
+  <div class="pulse-grid">
+
+    <div class="pulse">
+
+      <div class="pulse-name">
+        台股加權
+      </div>
+
+      <div class="pulse-value">
+        --
+      </div>
+
+      <div class="pulse-change gray">
+        資料待接入
+      </div>
+
+    </div>
+
+
+    <div class="pulse">
+
+      <div class="pulse-name">
+        NASDAQ
+      </div>
+
+      <div class="pulse-value">
+        --
+      </div>
+
+      <div class="pulse-change gray">
+        資料待接入
+      </div>
+
+    </div>
+
+
+    <div class="pulse">
+
+      <div class="pulse-name">
+        S&P 500
+      </div>
+
+      <div class="pulse-value">
+        --
+      </div>
+
+      <div class="pulse-change gray">
+        資料待接入
+      </div>
+
+    </div>
+
+
+    <div class="pulse">
+
+      <div class="pulse-name">
+        USD / TWD
+      </div>
+
+      <div class="pulse-value">
+        --
+      </div>
+
+      <div class="pulse-change gray">
+        資料待接入
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="section-head">
+
     <div class="section-title">
       熱門股票
     </div>
@@ -404,37 +807,45 @@ button{cursor:pointer}
     <div class="section-more">
       IAN STOCK
     </div>
+
   </div>
+
 
   <div id="stockList"></div>
 
-  <div class="refresh">
 
-    <button
-      class="refresh-btn"
-      onclick="refreshQuotes(true)"
-    >
-      ↻ 更新行情
-    </button>
+  <button
+    class="primary-btn"
+    onclick="refreshQuotes(true)"
+  >
+    ↻ 更新行情
+  </button>
 
-    <div id="cacheText" class="cache-text">
-      尚未取得行情
-    </div>
 
+  <div
+    id="cacheText"
+    class="cache-text"
+  >
+    尚未取得行情
   </div>
 
 </section>
 
 
-<!-- ================= SEARCH ================= -->
+<!-- ================================================= -->
+<!-- SEARCH -->
+<!-- ================================================= -->
 
 <section id="searchPage" class="page">
 
   <div class="section-head">
+
     <div class="section-title">
       🔍 搜尋股票
     </div>
+
   </div>
+
 
   <div class="search-box">
 
@@ -443,52 +854,66 @@ button{cursor:pointer}
     <input
       id="searchInput"
       class="search"
-      placeholder="輸入代號，例如 2330 / NVDA"
+      placeholder="輸入 2330、台積電、NVDA..."
       oninput="searchPage()"
     >
 
   </div>
 
+
   <div id="searchResults">
+
     <div class="empty">
       輸入股票代號或公司名稱開始搜尋
     </div>
+
   </div>
 
 </section>
 
 
-<!-- ================= WATCHLIST ================= -->
+<!-- ================================================= -->
+<!-- WATCHLIST -->
+<!-- ================================================= -->
 
 <section id="watchlistPage" class="page">
 
   <div class="section-head">
+
     <div class="section-title">
       ⭐ 我的自選
     </div>
-  </div>
 
-  <div id="watchlistContent">
-
-    <div class="empty">
-      點擊股票旁邊的 ☆<br>
-      就可以加入自選
+    <div class="section-more">
+      WATCHLIST
     </div>
 
   </div>
+
+
+  <div id="watchlistContent"></div>
 
 </section>
 
 
-<!-- ================= PORTFOLIO ================= -->
+<!-- ================================================= -->
+<!-- PORTFOLIO -->
+<!-- ================================================= -->
 
 <section id="portfolioPage" class="page">
 
   <div class="section-head">
+
     <div class="section-title">
       💼 投資組合
     </div>
+
+    <div class="section-more">
+      PAPER TRADING
+    </div>
+
   </div>
+
 
   <div class="balance-card">
 
@@ -496,94 +921,742 @@ button{cursor:pointer}
       模擬資產
     </div>
 
-    <div class="balance">
+    <div
+      id="portfolioBalance"
+      class="balance"
+    >
       NT$1,000,000
     </div>
 
     <div class="balance-sub">
-      PAPER TRADING · 模擬交易
+      PAPER TRADING · 模擬模式
     </div>
 
   </div>
 
+
+  <div class="portfolio-grid">
+
+    <div class="port-stat">
+
+      <div class="port-label">
+        持倉市值
+      </div>
+
+      <div
+        id="portfolioValue"
+        class="port-value"
+      >
+        NT$0
+      </div>
+
+    </div>
+
+
+    <div class="port-stat">
+
+      <div class="port-label">
+        未實現損益
+      </div>
+
+      <div
+        id="portfolioPnL"
+        class="port-value"
+      >
+        NT$0
+      </div>
+
+    </div>
+
+  </div>
+
+
   <div class="section-head">
+
+    <div class="section-title">
+      建立模擬交易
+    </div>
+
+  </div>
+
+
+  <div class="form">
+
+    <div class="form-row">
+
+      <div>
+
+        <div class="form-label">
+          股票
+        </div>
+
+        <input
+          id="tradeSymbol"
+          class="form-input"
+          placeholder="例如 NVDA"
+        >
+
+      </div>
+
+
+      <div>
+
+        <div class="form-label">
+          數量
+        </div>
+
+        <input
+          id="tradeQty"
+          class="form-input"
+          type="number"
+          placeholder="10"
+        >
+
+      </div>
+
+    </div>
+
+
+    <div style="height:8px"></div>
+
+
+    <div class="form-row">
+
+      <div>
+
+        <div class="form-label">
+          買入價格
+        </div>
+
+        <input
+          id="tradePrice"
+          class="form-input"
+          type="number"
+          placeholder="價格"
+        >
+
+      </div>
+
+
+      <div>
+
+        <div class="form-label">
+          動作
+        </div>
+
+        <select
+          id="tradeSide"
+          class="form-select"
+        >
+
+          <option value="buy">
+            買入
+          </option>
+
+          <option value="sell">
+            賣出
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+
+    <div style="height:10px"></div>
+
+
+    <button
+      class="primary-btn"
+      onclick="addTrade()"
+    >
+      建立模擬交易
+    </button>
+
+  </div>
+
+
+  <div class="section-head">
+
     <div class="section-title">
       持倉
     </div>
+
   </div>
 
-  <div class="empty">
-    目前尚未建立模擬持倉
+
+  <div id="portfolioPositions"></div>
+
+
+  <div class="section-head">
+
+    <div class="section-title">
+      交易紀錄
+    </div>
+
+  </div>
+
+
+  <div id="tradeHistory"></div>
+
+</section>
+
+
+<!-- ================================================= -->
+<!-- AI -->
+<!-- ================================================= -->
+
+<section id="aiPage" class="page">
+
+  <div class="section-head">
+
+    <div class="section-title">
+      🤖 IAN AI
+    </div>
+
+    <div class="section-more">
+      RESEARCH
+    </div>
+
+  </div>
+
+
+  <div class="ai-card">
+
+    <div class="ai-head">
+
+      <div class="ai-title">
+        Technical Analysis
+      </div>
+
+      <div class="ai-tag">
+        ANALYSIS
+      </div>
+
+    </div>
+
+    <div class="ai-desc">
+      分析 MA、RSI、MACD、成交量、
+      趨勢、支撐與壓力。
+    </div>
+
+  </div>
+
+
+  <div class="ai-card">
+
+    <div class="ai-head">
+
+      <div class="ai-title">
+        Fundamental
+      </div>
+
+      <div class="ai-tag">
+        FUNDAMENTAL
+      </div>
+
+    </div>
+
+    <div class="ai-desc">
+      營收、獲利、估值、公司資料與重要公告。
+    </div>
+
+  </div>
+
+
+  <div class="ai-card">
+
+    <div class="ai-head">
+
+      <div class="ai-title">
+        Market Sentiment
+      </div>
+
+      <div class="ai-tag">
+        SENTIMENT
+      </div>
+
+    </div>
+
+    <div class="ai-desc">
+      新聞、公開市場觀點與市場情緒。
+    </div>
+
+  </div>
+
+
+  <div class="ai-card">
+
+    <div class="ai-head">
+
+      <div class="ai-title">
+        Risk
+      </div>
+
+      <div class="ai-tag">
+        RISK
+      </div>
+
+    </div>
+
+    <div class="ai-desc">
+      整理重要風險、事件、波動與需要注意的訊號。
+    </div>
+
   </div>
 
 </section>
 
 
-<!-- ================= AI ================= -->
+<!-- ================================================= -->
+<!-- ALERT -->
+<!-- ================================================= -->
 
-<section id="aiPage" class="page">
+<section id="alertPage" class="page">
 
   <div class="section-head">
+
+    <div class="section-title">
+      🔔 價格提醒
+    </div>
+
+  </div>
+
+
+  <div class="form">
+
+    <div class="form-row">
+
+      <div>
+
+        <div class="form-label">
+          股票
+        </div>
+
+        <input
+          id="alertSymbol"
+          class="form-input"
+          placeholder="NVDA"
+        >
+
+      </div>
+
+
+      <div>
+
+        <div class="form-label">
+          價格
+        </div>
+
+        <input
+          id="alertPrice"
+          class="form-input"
+          type="number"
+          placeholder="200"
+        >
+
+      </div>
+
+    </div>
+
+
+    <div style="height:10px"></div>
+
+
+    <button
+      class="primary-btn"
+      onclick="addAlert()"
+    >
+      建立提醒
+    </button>
+
+  </div>
+
+
+  <div class="section-head">
+
+    <div class="section-title">
+      我的提醒
+    </div>
+
+  </div>
+
+
+  <div id="alerts"></div>
+
+</section>
+
+
+<!-- ================================================= -->
+<!-- DETAIL -->
+<!-- ================================================= -->
+
+<section id="detailPage" class="page">
+
+  <div class="detail-header">
+
+    <button
+      class="back-btn"
+      onclick="closeDetail()"
+    >
+      ‹
+    </button>
+
+
+    <div>
+
+      <div
+        id="detailSymbol"
+        class="detail-symbol"
+      >
+        --
+      </div>
+
+      <div
+        id="detailName"
+        class="detail-name"
+      >
+        --
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="detail-card">
+
+    <div
+      id="detailPrice"
+      class="detail-price"
+    >
+      --
+    </div>
+
+    <div
+      id="detailChange"
+      class="detail-change gray"
+    >
+      等待行情
+    </div>
+
+  </div>
+
+
+  <div class="section-head">
+
+    <div class="section-title">
+      價格走勢
+    </div>
+
+  </div>
+
+
+  <div class="chart-tabs">
+
+    <button class="chart-tab active">
+      分時
+    </button>
+
+    <button class="chart-tab">
+      日K
+    </button>
+
+    <button class="chart-tab">
+      週K
+    </button>
+
+    <button class="chart-tab">
+      月K
+    </button>
+
+  </div>
+
+
+  <div class="chart-box">
+
+    <div class="chart-grid"></div>
+
+    <svg
+      class="chart-svg"
+      viewBox="0 0 500 160"
+      preserveAspectRatio="none"
+    >
+
+      <polyline
+        points="
+        0,135
+        35,120
+        70,130
+        105,95
+        140,108
+        175,82
+        210,96
+        245,62
+        280,76
+        315,48
+        350,65
+        385,38
+        420,52
+        455,25
+        500,39"
+        fill="none"
+        stroke="#778393"
+        stroke-width="3"
+      />
+
+    </svg>
+
+
+    <div class="chart-placeholder">
+      歷史行情資料接入後顯示真實 K 線
+    </div>
+
+  </div>
+
+
+  <div class="section-head">
+
+    <div class="section-title">
+      技術指標
+    </div>
+
+  </div>
+
+
+  <div class="indicator-grid">
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        MA5
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        MA20
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        MA60
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        RSI
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        MACD
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        成交量
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="section-head">
+
+    <div class="section-title">
+      支撐 / 壓力
+    </div>
+
+  </div>
+
+
+  <div class="indicator-grid">
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        支撐
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+
+    <div class="indicator">
+
+      <div class="indicator-label">
+        壓力
+      </div>
+
+      <div class="indicator-value">
+        待資料
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="section-head">
+
     <div class="section-title">
       🤖 IAN AI
     </div>
+
   </div>
+
 
   <div class="ai-card">
 
-    <div class="ai-title">
-      Technical Analysis
+    <div class="ai-head">
+
+      <div class="ai-title">
+        趨勢 Trend
+      </div>
+
+      <div class="ai-tag">
+        AI
+      </div>
+
     </div>
 
     <div class="ai-desc">
-      技術面分析：MA、RSI、MACD、成交量、
-      支撐與壓力。
+      等待歷史行情資料後分析。
     </div>
 
   </div>
+
 
   <div class="ai-card">
 
-    <div class="ai-title">
-      Fundamental
+    <div class="ai-head">
+
+      <div class="ai-title">
+        動能 Momentum
+      </div>
+
+      <div class="ai-tag">
+        AI
+      </div>
+
     </div>
 
     <div class="ai-desc">
-      基本面、營收、獲利、估值與公司資訊。
+      將分析 RSI、MACD、成交量與價格動能。
     </div>
 
   </div>
+
 
   <div class="ai-card">
 
-    <div class="ai-title">
-      Market Sentiment
+    <div class="ai-head">
+
+      <div class="ai-title">
+        基本面 Fundamental
+      </div>
+
+      <div class="ai-tag">
+        AI
+      </div>
+
     </div>
 
     <div class="ai-desc">
-      市場情緒、新聞與公開投資者觀點。
+      將整合公司基本資料與財務資訊。
     </div>
 
   </div>
+
 
   <div class="ai-card">
 
-    <div class="ai-title">
-      Risk
+    <div class="ai-head">
+
+      <div class="ai-title">
+        風險 Risk
+      </div>
+
+      <div class="ai-tag">
+        AI
+      </div>
+
     </div>
 
     <div class="ai-desc">
-      顯示可能影響股票價格的風險與重要事件。
+      將整理可能影響股價的重要風險。
     </div>
 
   </div>
+
+
+  <div style="height:15px"></div>
+
+
+  <button
+    class="primary-btn"
+    onclick="addCurrentToWatchlist()"
+  >
+    ☆ 加入我的自選
+  </button>
 
 </section>
 
 </div>
 
 
-<!-- ================= BOTTOM NAV ================= -->
+<!-- ================================================= -->
+<!-- BOTTOM NAV -->
+<!-- ================================================= -->
 
 <nav class="bottom-nav">
 
@@ -597,6 +1670,7 @@ button{cursor:pointer}
       首頁
     </button>
 
+
     <button
       class="nav-btn"
       onclick="showPage('searchPage',this)"
@@ -604,6 +1678,7 @@ button{cursor:pointer}
       <span class="nav-icon">⌕</span>
       搜尋
     </button>
+
 
     <button
       class="nav-btn"
@@ -613,6 +1688,7 @@ button{cursor:pointer}
       自選
     </button>
 
+
     <button
       class="nav-btn"
       onclick="showPage('portfolioPage',this)"
@@ -620,6 +1696,7 @@ button{cursor:pointer}
       <span class="nav-icon">▣</span>
       投資組合
     </button>
+
 
     <button
       class="nav-btn"
@@ -636,17 +1713,17 @@ button{cursor:pointer}
 
 <script>
 
-/* =========================
+/* =================================================
    API
-========================= */
+================================================= */
 
 const API_BASE =
   "https://ian-stock-api.onrender.com";
 
 
-/* =========================
-   台股
-========================= */
+/* =================================================
+   股票資料
+================================================= */
 
 const TW_STOCKS = [
 
@@ -694,10 +1771,6 @@ const TW_STOCKS = [
 ];
 
 
-/* =========================
-   美股
-========================= */
-
 const US_STOCKS = [
 
   {symbol:"NVDA",name:"NVIDIA"},
@@ -738,15 +1811,33 @@ let currentMarket = "tw";
 
 let quotes = {};
 
+let currentStock = null;
+
 let watchlist =
   JSON.parse(
-    localStorage.getItem("ian_watchlist") || "[]"
+    localStorage.getItem(
+      "ian_watchlist"
+    ) || "[]"
+  );
+
+let trades =
+  JSON.parse(
+    localStorage.getItem(
+      "ian_trades"
+    ) || "[]"
+  );
+
+let alerts =
+  JSON.parse(
+    localStorage.getItem(
+      "ian_alerts"
+    ) || "[]"
   );
 
 
-/* =========================
-   Page
-========================= */
+/* =================================================
+   PAGE
+================================================= */
 
 function showPage(id,button){
 
@@ -766,14 +1857,41 @@ function showPage(id,button){
       btn.classList.remove("active");
     });
 
-  button.classList.add("active");
+  if(button){
+    button.classList.add("active");
+  }
+
+  window.scrollTo(0,0);
 
 }
 
 
-/* =========================
-   Market
-========================= */
+/* =================================================
+   STOCK
+================================================= */
+
+function allStocks(){
+
+  return [
+    ...TW_STOCKS,
+    ...US_STOCKS
+  ];
+
+}
+
+
+function getStock(symbol){
+
+  return allStocks().find(
+    x => x.symbol === symbol
+  );
+
+}
+
+
+/* =================================================
+   MARKET
+================================================= */
 
 function changeMarket(market){
 
@@ -798,28 +1916,16 @@ function changeMarket(market){
 }
 
 
-/* =========================
-   All stocks
-========================= */
-
-function allStocks(){
-
-  return [
-    ...TW_STOCKS,
-    ...US_STOCKS
-  ];
-
-}
-
-
-/* =========================
-   Render
-========================= */
+/* =================================================
+   STOCK CARD
+================================================= */
 
 function renderStocks(list=null){
 
   const container =
-    document.getElementById("stockList");
+    document.getElementById(
+      "stockList"
+    );
 
   const stocks =
     list ||
@@ -836,32 +1942,27 @@ function renderStocks(list=null){
     const q =
       quotes[stock.symbol];
 
-    let price =
+    let priceHTML =
       `<span class="gray">等待行情</span>`;
 
     if(q){
 
       const change =
-        Number(q.changePct || 0);
+        Number(
+          q.changePct || 0
+        );
 
-      const cls =
-        change >= 0
-        ? "up"
-        : "down";
-
-      const sign =
-        change >= 0
-        ? "+"
-        : "";
-
-      price = `
+      priceHTML = `
 
         <div class="stock-price">
           ${q.price}
         </div>
 
-        <div class="stock-change ${cls}">
-          ${sign}${change}%
+        <div class="
+          stock-change
+          ${change >= 0 ? "up" : "down"}
+        ">
+          ${change >= 0 ? "+" : ""}${change}%
         </div>
 
       `;
@@ -869,15 +1970,21 @@ function renderStocks(list=null){
     }
 
     const saved =
-      watchlist.includes(stock.symbol);
+      watchlist.includes(
+        stock.symbol
+      );
+
 
     container.innerHTML += `
 
-      <div class="stock-card">
+      <div
+        class="stock-card"
+        onclick="openDetail('${stock.symbol}')"
+      >
 
-        <div class="stock-row">
+        <div class="stock-main">
 
-          <div class="stock-left">
+          <div class="stock-info">
 
             <div class="stock-symbol">
               ${stock.symbol}
@@ -889,28 +1996,22 @@ function renderStocks(list=null){
 
           </div>
 
-          <div class="stock-right">
+          <div class="stock-price-area">
 
-            ${price}
+            ${priceHTML}
 
           </div>
 
         </div>
 
-        <div style="
-          display:flex;
-          justify-content:flex-end;
-          margin-top:10px;
-        ">
+
+        <div class="stock-actions">
 
           <button
-            onclick="toggleWatch('${stock.symbol}')"
-            style="
-              border:0;
-              background:transparent;
-              color:#858e9b;
-              font-size:20px;
-              padding:4px 7px;
+            class="star-btn"
+            onclick="
+              event.stopPropagation();
+              toggleWatch('${stock.symbol}');
             "
           >
             ${saved ? "★" : "☆"}
@@ -927,18 +2028,21 @@ function renderStocks(list=null){
 }
 
 
-/* =========================
-   Search Home
-========================= */
+/* =================================================
+   SEARCH
+================================================= */
 
 function searchHome(){
 
   const keyword =
     document
-      .getElementById("homeSearch")
+      .getElementById(
+        "homeSearch"
+      )
       .value
       .trim()
       .toUpperCase();
+
 
   if(!keyword){
 
@@ -947,6 +2051,7 @@ function searchHome(){
     return;
 
   }
+
 
   const results =
     allStocks().filter(stock=>
@@ -963,26 +2068,29 @@ function searchHome(){
 
     );
 
+
   renderStocks(results);
 
 }
 
 
-/* =========================
-   Search Page
-========================= */
-
 function searchPage(){
 
   const keyword =
     document
-      .getElementById("searchInput")
+      .getElementById(
+        "searchInput"
+      )
       .value
       .trim()
       .toUpperCase();
 
+
   const container =
-    document.getElementById("searchResults");
+    document.getElementById(
+      "searchResults"
+    );
+
 
   if(!keyword){
 
@@ -995,6 +2103,7 @@ function searchPage(){
     return;
 
   }
+
 
   const results =
     allStocks().filter(stock=>
@@ -1033,11 +2142,15 @@ function searchPage(){
 
       return `
 
-        <div class="stock-card">
+        <div
+          class="stock-card"
+          onclick="openDetail('${stock.symbol}')"
+        >
 
-          <div class="stock-row">
+          <div class="stock-main">
 
-            <div>
+            <div class="stock-info">
+
               <div class="stock-symbol">
                 ${stock.symbol}
               </div>
@@ -1045,14 +2158,15 @@ function searchPage(){
               <div class="stock-name">
                 ${stock.name}
               </div>
+
             </div>
 
-            <div class="stock-right">
+            <div class="stock-price-area">
 
               ${
                 q
                 ? q.price
-                : "等待行情"
+                : '<span class="gray">等待行情</span>'
               }
 
             </div>
@@ -1068,17 +2182,159 @@ function searchPage(){
 }
 
 
-/* =========================
-   Watchlist
-========================= */
+/* =================================================
+   DETAIL
+================================================= */
+
+function openDetail(symbol){
+
+  const stock =
+    getStock(symbol);
+
+  if(!stock){
+    return;
+  }
+
+  currentStock = stock;
+
+
+  document
+    .getElementById(
+      "detailSymbol"
+    )
+    .innerText =
+      stock.symbol;
+
+
+  document
+    .getElementById(
+      "detailName"
+    )
+    .innerText =
+      stock.name;
+
+
+  const q =
+    quotes[symbol];
+
+
+  if(q){
+
+    document
+      .getElementById(
+        "detailPrice"
+      )
+      .innerText =
+        q.price;
+
+
+    const change =
+      Number(
+        q.changePct || 0
+      );
+
+
+    const el =
+      document.getElementById(
+        "detailChange"
+      );
+
+
+    el.innerText =
+      (change >= 0 ? "+" : "") +
+      change +
+      "%";
+
+
+    el.className =
+      "detail-change " +
+      (
+        change >= 0
+        ? "up"
+        : "down"
+      );
+
+  }else{
+
+    document
+      .getElementById(
+        "detailPrice"
+      )
+      .innerText =
+        "--";
+
+
+    document
+      .getElementById(
+        "detailChange"
+      )
+      .innerText =
+        "等待行情資料";
+
+
+    document
+      .getElementById(
+        "detailChange"
+      )
+      .className =
+        "detail-change gray";
+
+  }
+
+
+  document
+    .querySelectorAll(".page")
+    .forEach(page=>{
+      page.classList.remove("active");
+    });
+
+
+  document
+    .getElementById(
+      "detailPage"
+    )
+    .classList.add("active");
+
+
+  window.scrollTo(0,0);
+
+}
+
+
+function closeDetail(){
+
+  document
+    .getElementById(
+      "detailPage"
+    )
+    .classList.remove("active");
+
+
+  document
+    .getElementById(
+      "homePage"
+    )
+    .classList.add("active");
+
+
+  window.scrollTo(0,0);
+
+}
+
+
+/* =================================================
+   WATCHLIST
+================================================= */
 
 function toggleWatch(symbol){
 
-  if(watchlist.includes(symbol)){
+  if(
+    watchlist.includes(symbol)
+  ){
 
     watchlist =
       watchlist.filter(
-        x=>x !== symbol
+        x => x !== symbol
       );
 
   }else{
@@ -1087,14 +2343,31 @@ function toggleWatch(symbol){
 
   }
 
+
   localStorage.setItem(
     "ian_watchlist",
-    JSON.stringify(watchlist)
+    JSON.stringify(
+      watchlist
+    )
   );
+
 
   renderStocks();
 
   renderWatchlist();
+
+}
+
+
+function addCurrentToWatchlist(){
+
+  if(!currentStock){
+    return;
+  }
+
+  toggleWatch(
+    currentStock.symbol
+  );
 
 }
 
@@ -1106,11 +2379,13 @@ function renderWatchlist(){
       "watchlistContent"
     );
 
+
   if(!watchlist.length){
 
     container.innerHTML = `
       <div class="empty">
-        目前還沒有自選股票
+        還沒有自選股票<br>
+        回首頁點擊 ☆ 加入
       </div>
     `;
 
@@ -1118,26 +2393,34 @@ function renderWatchlist(){
 
   }
 
-  const stocks =
-    allStocks()
-      .filter(stock =>
-        watchlist.includes(stock.symbol)
-      );
 
   container.innerHTML = "";
 
-  stocks.forEach(stock=>{
+
+  watchlist.forEach(symbol=>{
+
+    const stock =
+      getStock(symbol);
+
+    if(!stock){
+      return;
+    }
+
 
     const q =
-      quotes[stock.symbol];
+      quotes[symbol];
+
 
     container.innerHTML += `
 
-      <div class="stock-card">
+      <div
+        class="stock-card"
+        onclick="openDetail('${symbol}')"
+      >
 
-        <div class="stock-row">
+        <div class="stock-main">
 
-          <div>
+          <div class="stock-info">
 
             <div class="stock-symbol">
               ${stock.symbol}
@@ -1149,12 +2432,12 @@ function renderWatchlist(){
 
           </div>
 
-          <div class="stock-right">
+          <div class="stock-price-area">
 
             ${
               q
               ? q.price
-              : "等待行情"
+              : '<span class="gray">等待行情</span>'
             }
 
           </div>
@@ -1170,9 +2453,9 @@ function renderWatchlist(){
 }
 
 
-/* =========================
-   Quotes
-========================= */
+/* =================================================
+   QUOTES + CACHE
+================================================= */
 
 async function refreshQuotes(force=false){
 
@@ -1186,28 +2469,37 @@ async function refreshQuotes(force=false){
       "ian_quotes_time"
     );
 
+
   const now =
     Date.now();
+
 
   const CACHE_TIME =
     60 * 60 * 1000;
 
 
   /*
-    如果沒有強制更新，
-    且本機快取還有效，
-    直接使用快取。
+    這裡非常重要：
+
+    網站重新整理時，
+    優先讀取手機快取。
+
+    因此不會每次重新整理
+    都呼叫 Alpha Vantage。
   */
+
 
   if(
     !force &&
     saved &&
     savedTime &&
-    now - Number(savedTime) < CACHE_TIME
+    now - Number(savedTime)
+      < CACHE_TIME
   ){
 
     quotes =
       JSON.parse(saved);
+
 
     renderStocks();
 
@@ -1225,9 +2517,11 @@ async function refreshQuotes(force=false){
   try{
 
     document
-      .getElementById("cacheText")
+      .getElementById(
+        "cacheText"
+      )
       .innerText =
-      "正在取得行情…";
+        "正在取得行情…";
 
 
     const response =
@@ -1250,7 +2544,9 @@ async function refreshQuotes(force=false){
 
     localStorage.setItem(
       "ian_quotes",
-      JSON.stringify(quotes)
+      JSON.stringify(
+        quotes
+      )
     );
 
 
@@ -1270,41 +2566,564 @@ async function refreshQuotes(force=false){
   }catch(error){
 
     document
-      .getElementById("cacheText")
+      .getElementById(
+        "cacheText"
+      )
       .innerText =
-      "無法取得最新行情，保留上一筆資料";
+        "行情暫時無法更新，保留上一筆資料";
 
   }
 
 }
 
 
-/* =========================
-   Cache text
-========================= */
-
 function updateCacheText(time){
 
   const date =
     new Date(time);
 
+
   document
-    .getElementById("cacheText")
+    .getElementById(
+      "cacheText"
+    )
     .innerText =
       "行情更新：" +
-      date.toLocaleTimeString("zh-TW") +
+      date.toLocaleTimeString(
+        "zh-TW"
+      ) +
       " · 本機快取 1 小時";
 
 }
 
 
-/* =========================
-   Start
-========================= */
+/* =================================================
+   PAPER TRADING
+================================================= */
+
+function addTrade(){
+
+  const symbol =
+    document
+      .getElementById(
+        "tradeSymbol"
+      )
+      .value
+      .trim()
+      .toUpperCase();
+
+
+  const qty =
+    Number(
+      document
+        .getElementById(
+          "tradeQty"
+        )
+        .value
+    );
+
+
+  const price =
+    Number(
+      document
+        .getElementById(
+          "tradePrice"
+        )
+        .value
+    );
+
+
+  const side =
+    document
+      .getElementById(
+        "tradeSide"
+      )
+      .value;
+
+
+  if(
+    !symbol ||
+    !qty ||
+    !price
+  ){
+
+    alert(
+      "請輸入股票、數量與價格"
+    );
+
+    return;
+
+  }
+
+
+  trades.push({
+
+    id:Date.now(),
+
+    symbol,
+
+    qty,
+
+    price,
+
+    side,
+
+    time:
+      new Date()
+        .toLocaleString(
+          "zh-TW"
+        )
+
+  });
+
+
+  localStorage.setItem(
+    "ian_trades",
+    JSON.stringify(
+      trades
+    )
+  );
+
+
+  document
+    .getElementById(
+      "tradeSymbol"
+    )
+    .value = "";
+
+
+  document
+    .getElementById(
+      "tradeQty"
+    )
+    .value = "";
+
+
+  document
+    .getElementById(
+      "tradePrice"
+    )
+    .value = "";
+
+
+  renderPortfolio();
+
+}
+
+
+function renderPortfolio(){
+
+  const positions =
+    {};
+
+
+  trades.forEach(t=>{
+
+    if(
+      !positions[t.symbol]
+    ){
+
+      positions[t.symbol] = {
+
+        qty:0,
+
+        cost:0
+
+      };
+
+    }
+
+
+    if(
+      t.side === "buy"
+    ){
+
+      positions[t.symbol].qty +=
+        t.qty;
+
+      positions[t.symbol].cost +=
+        t.qty * t.price;
+
+    }else{
+
+      positions[t.symbol].qty -=
+        t.qty;
+
+      positions[t.symbol].cost -=
+        t.qty * t.price;
+
+    }
+
+  });
+
+
+  const container =
+    document.getElementById(
+      "portfolioPositions"
+    );
+
+
+  container.innerHTML = "";
+
+
+  let marketValue = 0;
+
+  let pnl = 0;
+
+
+  Object.keys(positions)
+    .forEach(symbol=>{
+
+      const p =
+        positions[symbol];
+
+
+      if(
+        p.qty === 0
+      ){
+        return;
+      }
+
+
+      const q =
+        quotes[symbol];
+
+
+      const current =
+        q
+        ? Number(q.price)
+        : 0;
+
+
+      const value =
+        current * p.qty;
+
+
+      const average =
+        p.cost / p.qty;
+
+
+      const itemPnl =
+        current
+        ? (current-average)
+          * p.qty
+        : 0;
+
+
+      marketValue += value;
+
+      pnl += itemPnl;
+
+
+      container.innerHTML += `
+
+        <div class="stock-card">
+
+          <div class="stock-main">
+
+            <div class="stock-info">
+
+              <div class="stock-symbol">
+                ${symbol}
+              </div>
+
+              <div class="stock-name">
+                持有 ${p.qty} 股
+              </div>
+
+            </div>
+
+            <div class="stock-price-area">
+
+              ${
+                current
+                ? current
+                : "等待行情"
+              }
+
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
+
+    });
+
+
+  if(
+    !Object.keys(positions).length
+  ){
+
+    container.innerHTML = `
+      <div class="empty">
+        尚未建立持倉
+      </div>
+    `;
+
+  }
+
+
+  document
+    .getElementById(
+      "portfolioValue"
+    )
+    .innerText =
+      "NT$" +
+      Math.round(
+        marketValue
+      ).toLocaleString();
+
+
+  const pnlEl =
+    document.getElementById(
+      "portfolioPnL"
+    );
+
+
+  pnlEl.innerText =
+    "NT$" +
+    Math.round(
+      pnl
+    ).toLocaleString();
+
+
+  pnlEl.className =
+    "port-value " +
+    (
+      pnl >= 0
+      ? "up"
+      : "down"
+    );
+
+
+  const history =
+    document.getElementById(
+      "tradeHistory"
+    );
+
+
+  if(!trades.length){
+
+    history.innerHTML = `
+      <div class="empty">
+        尚無交易紀錄
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  history.innerHTML =
+    trades
+      .slice()
+      .reverse()
+      .map(t=>`
+
+        <div class="stock-card">
+
+          <div class="stock-main">
+
+            <div class="stock-info">
+
+              <div class="stock-symbol">
+                ${t.symbol}
+              </div>
+
+              <div class="stock-name">
+                ${t.side === "buy" ? "買入" : "賣出"}
+                · ${t.qty} 股
+              </div>
+
+            </div>
+
+            <div class="stock-price-area">
+              ${t.price}
+            </div>
+
+          </div>
+
+        </div>
+
+      `)
+      .join("");
+
+}
+
+
+/* =================================================
+   ALERT
+================================================= */
+
+function addAlert(){
+
+  const symbol =
+    document
+      .getElementById(
+        "alertSymbol"
+      )
+      .value
+      .trim()
+      .toUpperCase();
+
+
+  const price =
+    Number(
+      document
+        .getElementById(
+          "alertPrice"
+        )
+        .value
+    );
+
+
+  if(
+    !symbol ||
+    !price
+  ){
+
+    alert(
+      "請輸入股票與價格"
+    );
+
+    return;
+
+  }
+
+
+  alerts.push({
+
+    id:Date.now(),
+
+    symbol,
+
+    price,
+
+    time:
+      new Date()
+        .toLocaleString(
+          "zh-TW"
+        )
+
+  });
+
+
+  localStorage.setItem(
+    "ian_alerts",
+    JSON.stringify(
+      alerts
+    )
+  );
+
+
+  document
+    .getElementById(
+      "alertSymbol"
+    )
+    .value = "";
+
+
+  document
+    .getElementById(
+      "alertPrice"
+    )
+    .value = "";
+
+
+  renderAlerts();
+
+}
+
+
+function renderAlerts(){
+
+  const container =
+    document.getElementById(
+      "alerts"
+    );
+
+
+  if(!alerts.length){
+
+    container.innerHTML = `
+      <div class="empty">
+        尚未建立價格提醒
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    alerts
+      .map((a,index)=>`
+
+        <div class="alert">
+
+          <div>
+
+            <div class="alert-title">
+              ${a.symbol}
+            </div>
+
+            <div class="alert-desc">
+              價格達到 NT$ / US$ ${a.price}
+            </div>
+
+          </div>
+
+          <button
+            class="secondary-btn"
+            onclick="deleteAlert(${index})"
+          >
+            刪除
+          </button>
+
+        </div>
+
+      `)
+      .join("");
+
+}
+
+
+function deleteAlert(index){
+
+  alerts.splice(
+    index,
+    1
+  );
+
+
+  localStorage.setItem(
+    "ian_alerts",
+    JSON.stringify(
+      alerts
+    )
+  );
+
+
+  renderAlerts();
+
+}
+
+
+/* =================================================
+   START
+================================================= */
 
 renderStocks();
 
 renderWatchlist();
+
+renderPortfolio();
+
+renderAlerts();
 
 refreshQuotes(false);
 
