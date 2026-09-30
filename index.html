@@ -101,15 +101,66 @@ const pct=n=>n==null||!Number.isFinite(Number(n))?'--':(Number(n)>=0?'+':'')+Num
 const cls=n=>Number(n)>0?'up':Number(n)<0?'down':'neutral';
 const flowCls=n=>Number(n)>0?'up':Number(n)<0?'down':'neutral';
 const stock=s=>{const x=STOCKS.find(a=>a[0]===String(s).toUpperCase());return x?{symbol:x[0],name:x[1],market:x[2]}:{symbol:String(s).toUpperCase(),name:String(s).toUpperCase(),market:/^\d+$/.test(s)?'TW':'US'}};
-async function api(p){const r=await fetch(API+p,{cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j}
+async function twseMonth(symbol, y, m){
+  const mm=String(m).padStart(2,'0');
+  const url=`https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${y}${mm}01&stockNo=${encodeURIComponent(symbol)}`;
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)throw Error('TWSE '+r.status);
+  const j=await r.json();
+  return (j.data||[]).map(row=>({
+    date:String(row[0]||''),
+    volume:Number(String(row[1]||'').replace(/,/g,''))||0,
+    open:Number(String(row[3]||'').replace(/,/g,'')),
+    high:Number(String(row[4]||'').replace(/,/g,'')),
+    low:Number(String(row[5]||'').replace(/,/g,'')),
+    close:Number(String(row[6]||'').replace(/,/g,''))
+  })).filter(x=>[x.open,x.high,x.low,x.close].every(Number.isFinite));
+}
+async function directTWHistory(symbol, range='1mo'){
+  const months={ '1mo':2,'3mo':4,'6mo':7,'1y':13,'2y':25 }[range]||2;
+  const now=new Date(), out=[];
+  for(let i=0;i<months;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    try{out.push(...await twseMonth(symbol,d.getFullYear(),d.getMonth()+1));}catch(e){}
+  }
+  out.sort((a,b)=>a.date.localeCompare(b.date));
+  return out;
+}
+function clientIndicators(rows){
+  const c=rows.map(x=>x.close);
+  const sma=n=>c.map((_,i)=>i<n-1?null:c.slice(i-n+1,i+1).reduce((a,b)=>a+b,0)/n);
+  const ma5=sma(5),ma20=sma(20),ma60=sma(60);
+  let gains=0,losses=0; for(let i=1;i<Math.min(15,c.length);i++){const d=c[i]-c[i-1];if(d>=0)gains+=d;else losses-=d;}
+  let rsi=null;if(c.length>=15){let g=gains/14,l=losses/14;rsi=l===0?100:100-100/(1+g/l);for(let i=15;i<c.length;i++){const d=c[i]-c[i-1];g=(g*13+Math.max(d,0))/14;l=(l*13+Math.max(-d,0))/14;rsi=l===0?100:100-100/(1+g/l)}}
+  const ema=(arr,n)=>{const k=2/(n+1),o=[];let v=arr[0];arr.forEach((x,i)=>{v=i?x*k+v*(1-k):x;o.push(v)});return o};
+  const e12=ema(c,12),e26=ema(c,26),mac=e12.map((v,i)=>v-e26[i]),sig=ema(mac,9);
+  const last=c.at(-1)||0, ma20v=ma20.at(-1), last20=c.slice(-20),avg=last20.reduce((a,b)=>a+b,0)/(last20.length||1),sd=Math.sqrt(last20.reduce((a,b)=>a+(b-avg)**2,0)/(last20.length||1));
+  return {MA5:ma5.at(-1),MA20:ma20v,MA60:ma60.at(-1),RSI:rsi,macd:mac.at(-1),signal:sig.at(-1),histogram:(mac.at(-1)||0)-(sig.at(-1)||0),lower:(ma20v??avg)-sd*2,upper:(ma20v??avg)+sd*2,VWAP:avg,ATR:null,support:Math.min(...last20),resistance:Math.max(...last20)};
+}
+function clientAnalysis(ind,last){let score=50,trend='震盪',momentum='中性';if(ind.MA20!=null){if(last>ind.MA20){score+=12;trend='偏多'}else if(last<ind.MA20){score-=12;trend='偏空'}}if(ind.MA60!=null)score+=last>ind.MA60?10:-10;if(ind.RSI!=null){if(ind.RSI>70){score-=5;momentum='過熱'}else if(ind.RSI>55){score+=8;momentum='偏強'}else if(ind.RSI<30){score+=4;momentum='超賣'}else if(ind.RSI<45){score-=6;momentum='偏弱'}}if(ind.macd>ind.signal)score+=8;else score-=8;return {score:Math.max(0,Math.min(100,Math.round(score))),trend,momentum};}
+async function directTWQuote(symbol){const rows=await directTWHistory(symbol,'1mo');if(!rows.length)throw Error('TWSE no data');const last=rows.at(-1),prev=rows.at(-2);return {symbol,name:stock(symbol).name,market:'TW',price:last.close,previousClose:prev?.close,change:prev?last.close-prev.close:null,changePct:prev?((last.close-prev.close)/prev.close)*100:null,volume:last.volume,open:last.open,high:last.high,low:last.low,source:'TWSE'};}
+async function api(p){
+  try{const r=await fetch(API+p,{cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j}
+  catch(err){
+    const hm=p.match(/^\/api\/history\/([^?]+)(?:\?(.*))?$/);
+    if(hm && /^\d{4}$/.test(decodeURIComponent(hm[1]))){const qs=new URLSearchParams(hm[2]||'');let rows=await directTWHistory(decodeURIComponent(hm[1]),qs.get('range')||'1mo');const range=qs.get('range');if(range==='1d')rows=rows.slice(-1);if(range==='3d')rows=rows.slice(-3);if(range==='5d')rows=rows.slice(-5);return {symbol:decodeURIComponent(hm[1]),data:rows}}
+    const qm=p.match(/^\/api\/quotes\?symbols=([^&]+)/);
+    if(qm){const symbols=decodeURIComponent(qm[1]).split(',').filter(x=>/^\d{4}$/.test(x));const data=[];for(const s of symbols){try{data.push(await directTWQuote(s))}catch(e){}}if(data.length)return {data}}
+    const sm=p.match(/^\/api\/stock\/([^?]+)/);
+    if(sm && /^\d{4}$/.test(decodeURIComponent(sm[1]))){const symbol=decodeURIComponent(sm[1]),rows=await directTWHistory(symbol,'6mo'),quote=await directTWQuote(symbol),ind=clientIndicators(rows);return {quote,indicators:ind,analysis:clientAnalysis(ind,quote.price),institutional:{},dataPoints:rows.length}}
+    throw err;
+  }
+}
 function row(s){const q=Q[s[0]];return `<div class="stock" onclick="openStock('${s[0]}')"><div class="icon">${s[2]}</div><div class="si"><div class="sn">${s[1]}</div><div class="ss">${s[0]} · ${s[2]==='TW'?'台股':'US STOCK'}</div></div><div class="sp"><b>${q?fmt(q.price):'--'}</b><small class="${q?cls(q.changePct):'neutral'}">${q?pct(q.changePct):'等待行情'}</small></div></div>`}
 function renderStocks(){const a=STOCKS.filter(s=>market==='ALL'||s[2]===market);$('stocks').innerHTML=a.map(row).join('');$('stockStatus').textContent=Object.keys(Q).length+' / '+STOCKS.length+' LOADED';$('tracked').textContent=Object.keys(Q).length;}
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
-async function loadMarket(){try{const j=await api('/api/market');const a=j.data||[];const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);if(tw){$('heroTW').textContent=fmt(tw.price)}if(sp){$('heroUS').textContent=fmt(sp.price)}}catch(e){}}
+async function yahooIndex(symbol){const end=Math.floor(Date.now()/1000),start=end-3*86400;const u='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?period1='+start+'&period2='+end+'&interval=1d';const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw Error('Yahoo '+r.status);const j=await r.json();const z=j.chart?.result?.[0];const q=z?.indicators?.quote?.[0];const ts=z?.timestamp||[];const vals=(q?.close||[]).map((v,i)=>({price:Number(v),time:ts[i]})).filter(x=>Number.isFinite(x.price));const last=vals.at(-1),prev=vals.at(-2);if(!last)throw Error('No index data');return{symbol,price:last.price,previousClose:prev?.price,change:prev?last.price-prev.price:null,changePct:prev?((last.price-prev.price)/prev.price)*100:null}}
+async function loadMarket(){const ids=[['taiex','taiexCh','^TWII'],['sp','spCh','^GSPC'],['nasdaq','nasdaqCh','^IXIC'],['dow','dowCh','^DJI']];const out=await Promise.allSettled(ids.map(x=>yahooIndex(x[2])));out.forEach((r,i)=>{if(r.status==='fulfilled'){const q=r.value;setMarket(ids[i][0],ids[i][1],q);if(i===0)$('heroTW').textContent=fmt(q.price);if(i===1)$('heroUS').textContent=fmt(q.price)}})}
 function setMarket(v,c,q){if(!q)return;$(v).textContent=fmt(q.price);$(c).textContent=pct(q.changePct);$(c).className=cls(q.changePct);}
-async function loadQuotes(){try{const symbols=STOCKS.map(x=>x[0]).join(',');const j=await api('/api/quotes?symbols='+encodeURIComponent(symbols));(j.data||[]).forEach(q=>Q[q.symbol]=q);renderStocks();renderBread();renderTicker();renderWatch();}catch(e){}}
+async function loadOneQuote(symbol){try{const q=await api('/api/quote/'+encodeURIComponent(symbol));if(q&&q.symbol){Q[q.symbol]=q;return true}}catch(e){}return false}
+async function loadQuotes(){let loaded=0;for(let i=0;i<STOCKS.length;i+=6){const batch=STOCKS.slice(i,i+6);const rs=await Promise.all(batch.map(x=>loadOneQuote(x[0])));loaded+=rs.filter(Boolean).length;renderStocks();renderBread();renderTicker();renderWatch();$('stockStatus').textContent=loaded+' / '+STOCKS.length+' LOADED';if(i===0)await sleep(80)}}
 function renderWatch(){const a=JSON.parse(localStorage.getItem('IAN_WATCH')||'["2330","NVDA"]');$('watchList').innerHTML=a.length?a.map(s=>row(stock(s))).join(''):'<div class="empty">尚未加入自選股</div>';}
 function toggleWatch(s){let a=JSON.parse(localStorage.getItem('IAN_WATCH')||'[]');a=a.includes(s)?a.filter(x=>x!==s):a.concat(s);localStorage.setItem('IAN_WATCH',JSON.stringify(a));renderWatch();}
 function go(p,b){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(p+'Page').classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));if(b)b.classList.add('active');window.scrollTo({top:0,behavior:'smooth'});if(p==='watch')renderWatch();}
@@ -134,7 +185,7 @@ line(ma5,'#8be9ff',2);line(ma20,'#20f29a',2);line(ma60,'#a98bff',2);
 // 收盤價節點
 closes.forEach((v,i)=>{if(!Number.isFinite(v))return;const xx=pad.l+i*gap+gap/2;x.fillStyle='#20d9ff';x.beginPath();x.arc(xx,yy(v),2.5,0,Math.PI*2);x.fill();});
 const last=a[a.length-1];x.fillStyle='#20d9ff';x.beginPath();x.arc(pad.l+(a.length-1)*gap+gap/2,yy(last.c),5,0,Math.PI*2);x.fill();x.font='10px sans-serif';x.textAlign='left';x.fillStyle='#7f95a6';x.fillText('收盤',pad.l+6,h-8);$('cmin').textContent='MIN '+fmt(min);$('cmax').textContent='MAX '+fmt(max)}
-async function liveTick(){try{const tw=STOCKS.filter(s=>s[2]==='TW').map(s=>s[0]).join(',');const us=/^\d{4}$/.test(selected)?'':selected;const j=await api('/api/quotes?symbols='+encodeURIComponent(tw+(us?','+us:'')));(j.data||[]).forEach(q=>Q[q.symbol]=q);renderStocks();renderBread();renderTicker();if(document.getElementById('detailPage').classList.contains('active')&&Q[selected])setDetailQuote(Q[selected]);$('liveText').textContent='LIVE '+new Date().toLocaleTimeString('zh-TW',{hour12:false});}catch(e){$('liveText').textContent='LIVE · RETRY';}}
+async function liveTick(){try{const symbols=STOCKS.slice(0,12).map(s=>s[0]).join(',');const us=selected&&/^[A-Z]+$/.test(selected)&&!symbols.includes(selected)?','+selected:'';const j=await api('/api/quotes?symbols='+encodeURIComponent(symbols+us));const data=Array.isArray(j)?j:(j.data||[]);data.forEach(q=>{if(q&&q.symbol)Q[q.symbol]=q});renderStocks();renderBread();renderTicker();if(document.getElementById('detailPage').classList.contains('active')&&Q[selected])setDetailQuote(Q[selected]);$('liveText').textContent='LIVE '+new Date().toLocaleTimeString('zh-TW',{hour12:false});}catch(e){$('liveText').textContent='LIVE · RETRY';}}
 function renderPortfolio(){const p=JSON.parse(localStorage.getItem('IAN_PORT')||'{}');let value=1000000;const rows=[];Object.entries(p).forEach(([s,v])=>{const q=Q[s];if(q)value+=(q.price-v.avg)*v.qty;rows.push(`<div class="stock"><div class="si"><div class="sn">${stock(s).name}</div><div class="ss">${s} · ${v.qty} 股</div></div><div class="sp"><b>${q?fmt(q.price):'--'}</b><small class="${q?cls((q.price-v.avg)*v.qty):'neutral'}">${q?fmt((q.price-v.avg)*v.qty):'--'}</small></div></div>`)});$('pv').textContent='NT$'+Math.round(value).toLocaleString();const pr=value-1000000;$('pp').textContent=(pr>=0?'+':'')+'NT$'+Math.round(pr).toLocaleString()+' · '+(pr/10000).toFixed(2)+'%';$('pp').className=flowCls(pr);$('portfolioList').innerHTML=rows.join('')||'<div class="empty">目前沒有持倉</div>';}
 function init(){renderStocks();renderBread();renderWatch();renderPortfolio();loadQuotes();loadMarket();}
 init();setInterval(()=>{loadQuotes();loadMarket()},120000);setInterval(liveTick,5000);setInterval(()=>{if(selected&&document.getElementById('detailPage').classList.contains('active'))refreshDetail()},15000);window.addEventListener('resize',()=>{if(document.getElementById('detailPage').classList.contains('active'))draw()});
