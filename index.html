@@ -91,33 +91,33 @@ function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
 async function loadMarket(){try{const j=await api('/api/market');const a=j.data||[];const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);if(tw){$('heroTW').textContent=fmt(tw.price)}if(sp){$('heroUS').textContent=fmt(sp.price)}}catch(e){}}
 function setMarket(v,c,q){if(!q)return;$(v).textContent=fmt(q.price);$(c).textContent=pct(q.changePct);$(c).className=cls(q.changePct);}
-async function loadAllTaiwan(){
- try{
-  let j=await api('/api/tw-stocks');
-  let a=(j.data||[]).filter(x=>/^\d{4,6}$/.test(String(x.symbol||'')));
-  if(!a.length)throw Error('NO_TW_DATA');
-  return a.map(x=>({symbol:String(x.symbol),name:x.name||x.symbol,market:'TW',price:Number(x.price),changePct:Number(x.changePct||0),change:Number(x.change||0),open:Number(x.open),high:Number(x.high),low:Number(x.low),volume:Number(x.volume||0)}));
- }catch(e){
-  try{
-   const r=await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',{cache:'no-store'});const a=await r.json();
-   return (a||[]).map(x=>({symbol:String(x.Code||x.code||''),name:x.Name||x.name||'',market:'TW',price:Number(String(x.ClosingPrice||x.close||'').replace(/,/g,'')),change:Number(String(x.Change||x.change||'').replace(/,/g,'')),open:Number(String(x.OpeningPrice||x.open||'').replace(/,/g,'')),high:Number(String(x.HighestPrice||x.high||'').replace(/,/g,'')),low:Number(String(x.LowestPrice||x.low||'').replace(/,/g,'')),volume:Number(String(x.TradeVolume||x.volume||'').replace(/,/g,''))})).filter(x=>x.symbol&&Number.isFinite(x.price)).map(x=>({...x,changePct:x.price-x.change?x.change/(x.price-x.change)*100:0}));
-  }catch(_){return []}
- }
-}
 async function loadQuotes(){
- try{
-  const tw=await loadAllTaiwan();
-  const usList=STOCKS.filter(x=>x[2]==='US');
-  const usj=await api('/api/quotes?symbols='+encodeURIComponent(usList.map(x=>x[0]).join(',')));
-  const us=usj.data||[];
-  const merged=[...tw,...us];
-  const keepUS=usList.slice();
-  STOCKS.length=0;
-  tw.forEach(x=>STOCKS.push([x.symbol,x.name,'TW']));
-  keepUS.forEach(x=>STOCKS.push(x));
-  Q={};merged.forEach(q=>{if(q.symbol)Q[q.symbol]=q});
-  renderStocks();renderBread();renderTicker();renderWatch();
- }catch(e){console.error('loadQuotes',e)}
+  try{
+    let twData=[];
+    try{
+      const tj=await api('/api/tw-stocks');
+      twData=tj.data||[];
+    }catch(e){
+      try{
+        const r=await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',{cache:'no-store'});
+        const a=await r.json();
+        twData=a.map(x=>({symbol:String(x.Code||''),name:x.Name||x.Code,market:'TW',price:Number(String(x.ClosingPrice||'').replace(/,/g,''))||null,changePct:Number(String(x.Change||'').replace(/,/g,''))||0,open:Number(String(x.OpeningPrice||'').replace(/,/g,''))||null,high:Number(String(x.HighestPrice||'').replace(/,/g,''))||null,low:Number(String(x.LowestPrice||'').replace(/,/g,''))||null,volume:Number(String(x.TradeVolume||'').replace(/,/g,''))||0})).filter(x=>x.symbol&&x.price!=null);
+      }catch(_){twData=[]}
+    }
+    const usSymbols=STOCKS.filter(x=>x[2]==='US').map(x=>x[0]).join(',');
+    let usData=[];
+    if(usSymbols){try{const uj=await api('/api/quotes?symbols='+encodeURIComponent(usSymbols));usData=uj.data||[]}catch(_){} }
+    if(twData.length){
+      const twList=twData.map(x=>[String(x.symbol),x.name||String(x.symbol),'TW']);
+      const usList=STOCKS.filter(x=>x[2]==='US');
+      STOCKS.length=0;twList.forEach(x=>STOCKS.push(x));usList.forEach(x=>STOCKS.push(x));
+      Q={};[...twData,...usData].forEach(q=>{if(q&&q.symbol)Q[String(q.symbol)]=q});
+    }else{
+      usData.forEach(q=>{if(q&&q.symbol)Q[String(q.symbol)]=q});
+    }
+    renderStocks();renderBread();renderTicker();renderWatch();
+    $('stockStatus').textContent=Object.keys(Q).length+' / '+STOCKS.length+' LOADED';
+  }catch(e){$('stockStatus').textContent='行情載入失敗';}
 }
 function renderWatch(){const a=JSON.parse(localStorage.getItem('IAN_WATCH')||'["2330","NVDA"]');$('watchList').innerHTML=a.length?a.map(s=>row(stock(s))).join(''):'<div class="empty">尚未加入自選股</div>';}
 function toggleWatch(s){let a=JSON.parse(localStorage.getItem('IAN_WATCH')||'[]');a=a.includes(s)?a.filter(x=>x!==s):a.concat(s);localStorage.setItem('IAN_WATCH',JSON.stringify(a));renderWatch();}
@@ -136,8 +136,16 @@ function setAnalysis(a){$('ma5').textContent=fmt(a.MA5);$('ma20').textContent=fm
 function renderBook(q){const bp=q.bidPrices||[],bq=q.bidQty||[],ap=q.askPrices||[],aq=q.askQty||[];if(!bp.length&&!ap.length){$('bookRows').innerHTML='<div class="empty">目前資料源未提供此市場的五檔委託</div>';$('buyBar').style.width='50%';$('sellBar').style.width='50%';$('buyLabel').textContent='買方 --';$('sellLabel').textContent='賣方 --';$('bookStatus').textContent='DATA SOURCE N/A';return}let h='';for(let i=0;i<5;i++){h+=`<div class="bookrow"><span class="bid">${fmt(bq[i])}</span><span>${fmt(bp[i])} / ${fmt(ap[i])}</span><span class="ask">${fmt(aq[i])}</span></div>`}$('bookRows').innerHTML=h;const buy=q.buyVolume||0,sell=q.sellVolume||0,total=buy+sell,ratio=total?buy/total*100:50;$('buyBar').style.width=ratio+'%';$('sellBar').style.width=(100-ratio)+'%';$('buyLabel').textContent='買方 '+ratio.toFixed(1)+'%';$('sellLabel').textContent='賣方 '+(100-ratio).toFixed(1)+'%';$('bookStatus').textContent='LIVE 5 LEVELS';}
 function intervalFor(p){return '1d'}
 async function setPeriod(p,b){period=p;document.querySelectorAll('.range').forEach(x=>x.classList.remove('active'));b.classList.add('active');try{const fetchRange=['1d','3d','5d'].includes(p)?'1mo':p;const j=await api('/api/history/'+encodeURIComponent(selected)+'?range='+fetchRange+'&interval='+intervalFor(p));let rows=j.data||[];if(p==='1d')rows=rows.slice(-1);if(p==='3d')rows=rows.slice(-3);if(p==='5d')rows=rows.slice(-5);history=rows;draw()}catch(e){}}
-function draw(){const c=$('chart'),r=c.getBoundingClientRect(),dpr=devicePixelRatio||1,w=r.width,h=r.height;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!history.length){x.fillStyle='#60788a';x.font='11px sans-serif';x.textAlign='center';x.fillText('沒有圖表資料',w/2,h/2);return}const a=history.map(z=>({o:Number(z.open),h:Number(z.high),l:Number(z.low),c:Number(z.close),t:z.time})).filter(z=>[z.o,z.h,z.l,z.c].every(Number.isFinite));if(!a.length)return;const min=Math.min(...a.map(z=>z.l)),max=Math.max(...a.map(z=>z.h)),range=max-min||1,pad={l:42,r:9,t:18,b:22},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;for(let i=0;i<5;i++){const y=pad.t+ch*i/4;x.strokeStyle='#20d9ff0d';x.beginPath();x.moveTo(pad.l,y);x.lineTo(w-pad.r,y);x.stroke();x.fillStyle='#536a7c';x.font='8px sans-serif';x.textAlign='right';x.fillText(fmt(max-range*i/4),pad.l-6,y+3)}const gap=cw/a.length;const bw=Math.max(1.2,Math.min(8,gap*.55));a.forEach((z,i)=>{const xx=pad.l+i*gap+gap/2;const yy=v=>pad.t+(max-v)/range*ch;x.strokeStyle=z.c>z.o?'#ff3b30':z.c<z.o?'#20f29a':'#ffd166';x.lineWidth=1;x.beginPath();x.moveTo(xx,yy(z.h));x.lineTo(xx,yy(z.l));x.stroke();const top=yy(Math.max(z.o,z.c)),bot=yy(Math.min(z.o,z.c));x.fillStyle=z.c>z.o?'#a92735':z.c<z.o?'#176b50':'#315b86';x.fillRect(xx-bw/2,top,bw,Math.max(1,bot-top))});const last=a[a.length-1];x.fillStyle='#20d9ff';x.beginPath();x.arc(pad.l+(a.length-1)*gap+gap/2,pad.t+(max-last.c)/range*ch,3,0,Math.PI*2);x.fill();$('cmin').textContent='MIN '+fmt(min);$('cmax').textContent='MAX '+fmt(max)}
-async function liveTick(){try{const visible=STOCKS.filter(s=>market==='ALL'||s[2]===market).slice(0,80).map(s=>s[0]);const us=/^\d{4}$/.test(selected)?'':selected;const symbols=[...new Set(visible.concat(us||[]))].join(',');const j=await api('/api/live?symbols='+encodeURIComponent(symbols));(j.data||[]).forEach(q=>Q[q.symbol]=q);renderStocks();renderBread();renderTicker();if(document.getElementById('detailPage').classList.contains('active')&&Q[selected])setDetailQuote(Q[selected]);$('liveText').textContent='LIVE '+new Date().toLocaleTimeString('zh-TW',{hour12:false});}catch(e){$('liveText').textContent='LIVE · RETRY';}}
+function draw(){const c=$('chart'),r=c.getBoundingClientRect(),dpr=devicePixelRatio||1,w=r.width,h=r.height;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!history.length){x.fillStyle='#60788a';x.font='11px sans-serif';x.textAlign='center';x.fillText('沒有圖表資料',w/2,h/2);return}const a=history.map(z=>({o:Number(z.open),h:Number(z.high),l:Number(z.low),c:Number(z.close),t:z.time})).filter(z=>[z.o,z.h,z.l,z.c].every(Number.isFinite));if(!a.length)return;const min=Math.min(...a.map(z=>z.l)),max=Math.max(...a.map(z=>z.h)),range=max-min||1,pad={l:42,r:9,t:18,b:22},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;for(let i=0;i<5;i++){const y=pad.t+ch*i/4;x.strokeStyle='#20d9ff0d';x.beginPath();x.moveTo(pad.l,y);x.lineTo(w-pad.r,y);x.stroke();x.fillStyle='#536a7c';x.font='8px sans-serif';x.textAlign='right';x.fillText(fmt(max-range*i/4),pad.l-6,y+3)}const gap=cw/a.length;const bw=Math.max(1.2,Math.min(8,gap*.55));a.forEach((z,i)=>{const xx=pad.l+i*gap+gap/2;const yy=v=>pad.t+(max-v)/range*ch;x.strokeStyle=z.c>z.o?'#a92735':z.c<z.o?'#176b50':'#315b86';x.lineWidth=1;x.beginPath();x.moveTo(xx,yy(z.h));x.lineTo(xx,yy(z.l));x.stroke();const top=yy(Math.max(z.o,z.c)),bot=yy(Math.min(z.o,z.c));x.fillStyle=z.c>z.o?'#a92735':z.c<z.o?'#176b50':'#315b86';x.fillRect(xx-bw/2,top,bw,Math.max(1,bot-top))});const last=a[a.length-1];x.fillStyle='#315b86';x.beginPath();x.arc(pad.l+(a.length-1)*gap+gap/2,pad.t+(max-last.c)/range*ch,3,0,Math.PI*2);x.fill();$('cmin').textContent='MIN '+fmt(min);$('cmax').textContent='MAX '+fmt(max)}
+async function liveTick(){try{
+  const visible=STOCKS.filter(s=>market==='ALL'||s[2]===market).slice(0,100).map(s=>s[0]);
+  if(selected&&!visible.includes(selected))visible.push(selected);
+  const j=await api('/api/live?symbols='+encodeURIComponent([...new Set(visible)].join(',')));
+  (j.data||[]).forEach(q=>Q[q.symbol]=q);
+  renderStocks();renderBread();renderTicker();
+  if(document.getElementById('detailPage').classList.contains('active')&&Q[selected])setDetailQuote(Q[selected]);
+  $('liveText').textContent='LIVE '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
+}catch(e){$('liveText').textContent='LIVE · RETRY';}}
 function renderPortfolio(){const p=JSON.parse(localStorage.getItem('IAN_PORT')||'{}');let value=1000000;const rows=[];Object.entries(p).forEach(([s,v])=>{const q=Q[s];if(q)value+=(q.price-v.avg)*v.qty;rows.push(`<div class="stock"><div class="si"><div class="sn">${stock(s).name}</div><div class="ss">${s} · ${v.qty} 股</div></div><div class="sp"><b>${q?fmt(q.price):'--'}</b><small class="${q?cls((q.price-v.avg)*v.qty):'neutral'}">${q?fmt((q.price-v.avg)*v.qty):'--'}</small></div></div>`)});$('pv').textContent='NT$'+Math.round(value).toLocaleString();const pr=value-1000000;$('pp').textContent=(pr>=0?'+':'')+'NT$'+Math.round(pr).toLocaleString()+' · '+(pr/10000).toFixed(2)+'%';$('pp').className=flowCls(pr);$('portfolioList').innerHTML=rows.join('')||'<div class="empty">目前沒有持倉</div>';}
 function init(){renderStocks();renderBread();renderWatch();renderPortfolio();loadQuotes();loadMarket();}
 init();setInterval(()=>{loadQuotes();loadMarket()},120000);setInterval(liveTick,5000);setInterval(()=>{if(selected&&document.getElementById('detailPage').classList.contains('active'))refreshDetail()},15000);window.addEventListener('resize',()=>{if(document.getElementById('detailPage').classList.contains('active'))draw()});
