@@ -1,22 +1,10 @@
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-
-const app = express();
-
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+const http = require("http");
+const https = require("https");
 
 const PORT = process.env.PORT || 3000;
-const ALPHA_KEY = process.env.ALPHA_VANTAGE_KEY || "";
+const ALPHA = process.env.ALPHA_VANTAGE_KEY || "";
 
-const CACHE = new Map();
-const HISTORY_CACHE = new Map();
-
-const QUOTE_TTL = 5 * 1000;
-const HISTORY_TTL = 60 * 1000;
-
-const NAME = {
+const TW_NAMES = {
   "2330": "台積電",
   "2317": "鴻海",
   "2454": "聯發科",
@@ -24,1683 +12,1044 @@ const NAME = {
   "2382": "廣達",
   "3711": "日月光投控",
   "2881": "富邦金",
-  "2882": "國泰金",
-  "2603": "長榮",
-  "2618": "長榮航",
-  "3231": "緯創",
-  "2357": "華碩",
-  "6669": "緯穎",
-  "3017": "奇鋐",
-  "3034": "聯詠",
-  "3037": "欣興",
-  "2308": "台達電",
-  "3008": "大立光",
-  "2379": "瑞昱",
-  "2327": "國巨",
-  "2412": "中華電",
-  "2891": "中信金",
-  "2892": "第一金",
-  "1301": "台塑",
-  "1303": "南亞",
-  "2002": "中鋼",
-  "2207": "和泰車",
-  "1216": "統一",
-  "3045": "台灣大",
-  "4938": "和碩",
-  "3661": "世芯-KY",
-  "6488": "環球晶",
-  "5269": "祥碩",
-  "8046": "南電",
-  "6515": "穎崴",
-  "2376": "技嘉",
-  "2377": "微星",
-  "2385": "群光",
-  "2353": "宏碁",
-  "2395": "研華",
-
-  "NVDA": "NVIDIA",
-  "AAPL": "Apple",
-  "MSFT": "Microsoft",
-  "AMZN": "Amazon",
-  "GOOGL": "Alphabet",
-  "META": "Meta Platforms",
-  "TSLA": "Tesla",
-  "AMD": "AMD",
-  "AVGO": "Broadcom",
-  "NFLX": "Netflix",
-  "AMAT": "Applied Materials",
-  "MU": "Micron",
-  "QCOM": "Qualcomm",
-  "INTC": "Intel",
-  "ORCL": "Oracle",
-  "CRM": "Salesforce",
-  "PLTR": "Palantir",
-  "JPM": "JPMorgan",
-  "BAC": "Bank of America",
-  "V": "Visa",
-  "MA": "Mastercard",
-  "WMT": "Walmart",
-  "COST": "Costco",
-  "XOM": "Exxon Mobil",
-  "CVX": "Chevron",
-  "UNH": "UnitedHealth",
-  "KO": "Coca-Cola",
-  "PEP": "PepsiCo",
-  "DIS": "Disney",
-  "TSM": "TSMC ADR",
-  "ASML": "ASML"
+  "2882": "國泰金"
 };
 
-function normSymbol(s) {
-  return String(s || "").trim().toUpperCase();
+function send(res, status, data) {
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-store"
+  });
+
+  res.end(JSON.stringify(data));
 }
 
-function isTaiwan(s) {
-  return /^\d{4}$/.test(s);
-}
+function get(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(
+      url,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 IAN-STOCK"
+        }
+      },
+      response => {
+        let body = "";
 
-function yahooSymbol(s) {
-  s = normSymbol(s);
-  return isTaiwan(s) ? s + ".TW" : s;
-}
+        response.on("data", chunk => {
+          body += chunk;
+        });
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+        response.on("end", () => {
+          if (response.statusCode >= 400) {
+            reject(new Error("HTTP " + response.statusCode));
+            return;
+          }
 
-async function fetchJSON(url, timeoutMs = 12000) {
-
-  const controller = new AbortController();
-
-  const timer = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "IAN-STOCK/14.0",
-        "Accept": "application/json"
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            reject(new Error("JSON parse error"));
+          }
+        });
       }
+    );
+
+    req.setTimeout(12000, () => {
+      req.destroy();
+      reject(new Error("Request timeout"));
     });
 
-    if (!response.ok) {
-      throw new Error("HTTP " + response.status);
+    req.on("error", reject);
+  });
+}
+
+function norm(symbol) {
+  return String(symbol || "")
+    .trim()
+    .toUpperCase()
+    .replace(".TW", "");
+}
+
+function isUS(symbol) {
+  return /^[A-Z]+$/.test(symbol);
+}
+
+function num(value) {
+  const n = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function mean(arr) {
+  if (!arr.length) return null;
+
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+function sma(arr, period) {
+  return arr.map((_, i) => {
+    if (i < period - 1) return null;
+
+    return mean(arr.slice(i - period + 1, i + 1));
+  });
+}
+
+function ema(arr, period) {
+  if (!arr.length) return [];
+
+  const k = 2 / (period + 1);
+  const result = [];
+
+  let previous = arr[0];
+
+  arr.forEach((value, i) => {
+    if (i === 0) {
+      previous = value;
+    } else {
+      previous = value * k + previous * (1 - k);
     }
 
-    return await response.json();
-
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/* =====================================================
-   YAHOO QUOTE
-===================================================== */
-
-function quoteFromYahoo(symbol, json) {
-
-  const meta = json?.chart?.result?.[0]?.meta;
-
-  if (!meta) return null;
-
-  const price = Number(
-    meta.regularMarketPrice ??
-    meta.previousClose
-  );
-
-  const previousClose = Number(
-    meta.chartPreviousClose ??
-    meta.previousClose
-  );
-
-  if (!Number.isFinite(price)) {
-    return null;
-  }
-
-  let change = null;
-  let changePct = null;
-
-  if (
-    Number.isFinite(previousClose) &&
-    previousClose !== 0
-  ) {
-
-    change = price - previousClose;
-
-    changePct =
-      change /
-      previousClose *
-      100;
-
-  }
-
-  return {
-
-    symbol,
-
-    name:
-      NAME[symbol] ||
-      meta.longName ||
-      meta.shortName ||
-      symbol,
-
-    market:
-      isTaiwan(symbol)
-        ? "TW"
-        : "US",
-
-    price,
-
-    previousClose:
-      Number.isFinite(previousClose)
-        ? previousClose
-        : null,
-
-    change,
-
-    changePct,
-
-    currency:
-      meta.currency ||
-      (isTaiwan(symbol) ? "TWD" : "USD"),
-
-    exchange:
-      meta.exchangeName ||
-      meta.fullExchangeName ||
-      "",
-
-    timestamp:
-      meta.regularMarketTime
-        ? meta.regularMarketTime * 1000
-        : Date.now(),
-
-    volume:
-      Number(meta.regularMarketVolume) || 0,
-
-    source: "Yahoo Finance"
-
-  };
-}
-
-async function yahooQuote(symbol) {
-
-  const key = "quote:" + symbol;
-
-  const cached = CACHE.get(key);
-
-  if (
-    cached &&
-    Date.now() - cached.time < QUOTE_TTL
-  ) {
-    return cached.value;
-  }
-
-  const url =
-    "https://query1.finance.yahoo.com/v8/finance/chart/" +
-    encodeURIComponent(yahooSymbol(symbol)) +
-    "?range=5d&interval=1d&events=div%2Csplits";
-
-  const json = await fetchJSON(url);
-
-  const quote =
-    quoteFromYahoo(symbol, json);
-
-  if (!quote) {
-    throw new Error("Yahoo 沒有行情");
-  }
-
-  CACHE.set(key, {
-    time: Date.now(),
-    value: quote
+    result.push(previous);
   });
 
-  return quote;
+  return result;
 }
 
-/* =====================================================
-   ALPHA VANTAGE FALLBACK
-===================================================== */
+function rsi(close, period = 14) {
+  const result = Array(close.length).fill(null);
 
-async function alphaQuote(symbol) {
-
-  if (
-    !ALPHA_KEY ||
-    isTaiwan(symbol)
-  ) {
-    return null;
+  if (close.length <= period) {
+    return result;
   }
 
-  try {
+  let gain = 0;
+  let loss = 0;
 
-    const url =
-      "https://www.alphavantage.co/query" +
-      "?function=GLOBAL_QUOTE" +
-      "&symbol=" +
-      encodeURIComponent(symbol) +
-      "&apikey=" +
-      encodeURIComponent(ALPHA_KEY);
+  for (let i = 1; i <= period; i++) {
+    const diff = close[i] - close[i - 1];
 
-    const json = await fetchJSON(url);
-
-    const q = json?.["Global Quote"];
-
-    if (!q || !q["05. price"]) {
-      return null;
+    if (diff >= 0) {
+      gain += diff;
+    } else {
+      loss -= diff;
     }
-
-    const price = Number(q["05. price"]);
-
-    const previousClose =
-      Number(q["08. previous close"]);
-
-    const changePct =
-      Number(
-        String(
-          q["10. change percent"] || ""
-        ).replace("%", "")
-      );
-
-    return {
-
-      symbol,
-
-      name:
-        NAME[symbol] ||
-        symbol,
-
-      market: "US",
-
-      price,
-
-      previousClose,
-
-      change:
-        Number.isFinite(previousClose)
-          ? price - previousClose
-          : null,
-
-      changePct:
-        Number.isFinite(changePct)
-          ? changePct
-          : null,
-
-      currency: "USD",
-
-      timestamp: Date.now(),
-
-      volume:
-        Number(q["06. volume"]) || 0,
-
-      source: "Alpha Vantage"
-
-    };
-
-  } catch {
-
-    return null;
-
-  }
-}
-
-/* =====================================================
-   GET QUOTE
-===================================================== */
-
-async function getQuote(symbol) {
-
-  symbol = normSymbol(symbol);
-
-  try {
-
-    return await yahooQuote(symbol);
-
-  } catch (error) {
-
-    const fallback =
-      await alphaQuote(symbol);
-
-    if (fallback) {
-      return fallback;
-    }
-
-    throw error;
-  }
-}
-
-/* =====================================================
-   HISTORY
-===================================================== */
-
-async function history(
-  symbol,
-  range = "3mo",
-  interval = "1d"
-) {
-
-  symbol = normSymbol(symbol);
-
-  const key =
-    `history:${symbol}:${range}:${interval}`;
-
-  const cached =
-    HISTORY_CACHE.get(key);
-
-  if (
-    cached &&
-    Date.now() - cached.time < HISTORY_TTL
-  ) {
-    return cached.value;
   }
 
-  const url =
-    "https://query1.finance.yahoo.com/v8/finance/chart/" +
-    encodeURIComponent(yahooSymbol(symbol)) +
-    "?range=" +
-    encodeURIComponent(range) +
-    "&interval=" +
-    encodeURIComponent(interval) +
-    "&events=div%2Csplits";
+  gain /= period;
+  loss /= period;
 
-  const json =
-    await fetchJSON(url);
+  result[period] =
+    loss === 0
+      ? 100
+      : 100 - 100 / (1 + gain / loss);
 
-  const result =
-    json?.chart?.result?.[0];
+  for (let i = period + 1; i < close.length; i++) {
+    const diff = close[i] - close[i - 1];
 
-  if (!result) {
-    throw new Error("沒有歷史資料");
-  }
+    gain =
+      (gain * (period - 1) + Math.max(diff, 0)) /
+      period;
 
-  const quote =
-    result.indicators?.quote?.[0] || {};
+    loss =
+      (loss * (period - 1) + Math.max(-diff, 0)) /
+      period;
 
-  const timestamps =
-    result.timestamp || [];
-
-  const output = [];
-
-  for (
-    let i = 0;
-    i < timestamps.length;
-    i++
-  ) {
-
-    const close =
-      Number(quote.close?.[i]);
-
-    if (!Number.isFinite(close)) {
-      continue;
-    }
-
-    output.push({
-
-      time:
-        timestamps[i] * 1000,
-
-      open:
-        Number(quote.open?.[i]) || null,
-
-      high:
-        Number(quote.high?.[i]) || null,
-
-      low:
-        Number(quote.low?.[i]) || null,
-
-      close,
-
-      volume:
-        Number(quote.volume?.[i]) || 0
-
-    });
-
-  }
-
-  HISTORY_CACHE.set(key, {
-    time: Date.now(),
-    value: output
-  });
-
-  return output;
-}
-
-/* =====================================================
-   TECHNICAL INDICATORS
-===================================================== */
-
-function sma(values, period) {
-
-  if (values.length < period) {
-    return null;
-  }
-
-  const data =
-    values.slice(-period);
-
-  return (
-    data.reduce(
-      (a, b) => a + b,
-      0
-    ) / period
-  );
-}
-
-function emaSeries(values, period) {
-
-  if (values.length < period) {
-    return [];
-  }
-
-  const multiplier =
-    2 / (period + 1);
-
-  let ema =
-    values
-      .slice(0, period)
-      .reduce(
-        (a, b) => a + b,
-        0
-      ) / period;
-
-  const result = [ema];
-
-  for (
-    let i = period;
-    i < values.length;
-    i++
-  ) {
-
-    ema =
-      values[i] *
-      multiplier +
-      ema *
-      (1 - multiplier);
-
-    result.push(ema);
+    result[i] =
+      loss === 0
+        ? 100
+        : 100 - 100 / (1 + gain / loss);
   }
 
   return result;
 }
 
-function calculateRSI(
-  values,
-  period = 14
-) {
+function atr(rows, period = 14) {
+  const tr = [];
 
-  if (values.length <= period) {
-    return null;
-  }
-
-  let gains = 0;
-  let losses = 0;
-
-  for (
-    let i = 1;
-    i <= period;
-    i++
-  ) {
-
-    const diff =
-      values[i] -
-      values[i - 1];
-
-    if (diff >= 0) {
-      gains += diff;
+  for (let i = 0; i < rows.length; i++) {
+    if (i === 0) {
+      tr.push(rows[i].high - rows[i].low);
     } else {
-      losses -= diff;
-    }
-
-  }
-
-  let avgGain =
-    gains / period;
-
-  let avgLoss =
-    losses / period;
-
-  for (
-    let i = period + 1;
-    i < values.length;
-    i++
-  ) {
-
-    const diff =
-      values[i] -
-      values[i - 1];
-
-    avgGain =
-      (
-        avgGain *
-        (period - 1) +
-        Math.max(diff, 0)
-      ) / period;
-
-    avgLoss =
-      (
-        avgLoss *
-        (period - 1) +
-        Math.max(-diff, 0)
-      ) / period;
-
-  }
-
-  if (avgLoss === 0) {
-    return 100;
-  }
-
-  const rs =
-    avgGain / avgLoss;
-
-  return 100 -
-    100 /
-    (1 + rs);
-}
-
-function calculateATR(
-  candles,
-  period = 14
-) {
-
-  if (
-    candles.length <
-    period + 1
-  ) {
-    return null;
-  }
-
-  const trueRanges = [];
-
-  for (
-    let i = 1;
-    i < candles.length;
-    i++
-  ) {
-
-    const current =
-      candles[i];
-
-    const previous =
-      candles[i - 1];
-
-    const tr =
-      Math.max(
-        current.high - current.low,
-
-        Math.abs(
-          current.high -
-          previous.close
-        ),
-
-        Math.abs(
-          current.low -
-          previous.close
+      tr.push(
+        Math.max(
+          rows[i].high - rows[i].low,
+          Math.abs(rows[i].high - rows[i - 1].close),
+          Math.abs(rows[i].low - rows[i - 1].close)
         )
       );
-
-    trueRanges.push(tr);
-
+    }
   }
 
-  const data =
-    trueRanges.slice(-period);
+  return sma(tr, period);
+}
 
-  return (
-    data.reduce(
-      (a, b) => a + b,
-      0
-    ) / data.length
+function calculateIndicators(rows) {
+  const close = rows.map(x => x.close);
+
+  const ma5 = sma(close, 5);
+  const ma20 = sma(close, 20);
+  const ma60 = sma(close, 60);
+
+  const ema12 = ema(close, 12);
+  const ema26 = ema(close, 26);
+
+  const macd = ema12.map(
+    (value, i) => value - ema26[i]
+  );
+
+  const signal = ema(macd, 9);
+
+  const rsiData = rsi(close, 14);
+  const atrData = atr(rows, 14);
+
+  const middle = ma20.at(-1);
+
+  const last20 = close.slice(-20);
+
+  const avg = mean(last20) || close.at(-1);
+
+  const variance =
+    mean(
+      last20.map(x => Math.pow(x - avg, 2))
+    ) || 0;
+
+  const sd = Math.sqrt(variance);
+
+  return {
+    MA5: ma5.at(-1),
+    MA20: ma20.at(-1),
+    MA60: ma60.at(-1),
+
+    EMA12: ema12.at(-1),
+    EMA26: ema26.at(-1),
+
+    RSI: rsiData.at(-1),
+
+    macd: macd.at(-1),
+    signal: signal.at(-1),
+    histogram:
+      macd.at(-1) - signal.at(-1),
+
+    middle,
+
+    upper:
+      (middle || avg) + sd * 2,
+
+    lower:
+      (middle || avg) - sd * 2,
+
+    ATR: atrData.at(-1),
+
+    support:
+      Math.min(...close.slice(-20)),
+
+    resistance:
+      Math.max(...close.slice(-20)),
+
+    VWAP:
+      mean(
+        rows
+          .slice(-20)
+          .map(x => x.close)
+      )
+  };
+}
+
+function makeAnalysis(indicators, price) {
+  let score = 50;
+
+  let trend = "震盪";
+  let momentum = "中性";
+
+  if (
+    indicators.MA20 &&
+    price > indicators.MA20
+  ) {
+    score += 12;
+    trend = "偏多";
+  } else if (
+    indicators.MA20 &&
+    price < indicators.MA20
+  ) {
+    score -= 12;
+    trend = "偏空";
+  }
+
+  if (
+    indicators.MA60 &&
+    price > indicators.MA60
+  ) {
+    score += 10;
+  } else if (
+    indicators.MA60 &&
+    price < indicators.MA60
+  ) {
+    score -= 10;
+  }
+
+  if (indicators.RSI != null) {
+    if (indicators.RSI > 70) {
+      score -= 5;
+      momentum = "過熱";
+    } else if (indicators.RSI > 55) {
+      score += 8;
+      momentum = "偏強";
+    } else if (indicators.RSI < 30) {
+      score += 4;
+      momentum = "超賣";
+    } else if (indicators.RSI < 45) {
+      score -= 6;
+      momentum = "偏弱";
+    }
+  }
+
+  if (
+    indicators.macd >
+    indicators.signal
+  ) {
+    score += 8;
+  } else {
+    score -= 8;
+  }
+
+  score = Math.max(
+    0,
+    Math.min(100, Math.round(score))
+  );
+
+  return {
+    score,
+    trend,
+    momentum,
+
+    summary:
+      `目前價格 ${price}；均線、RSI、MACD 與波動指標顯示為「${trend}／${momentum}」。` +
+      `這是規則式資訊整理，不代表未來報酬或買賣指示。`
+  };
+}
+
+async function yahooHistory(
+  symbol,
+  range = "6mo"
+) {
+  const days = {
+    "1mo": 30,
+    "3mo": 90,
+    "6mo": 180,
+    "1y": 365,
+    "2y": 730
+  }[range] || 180;
+
+  const end =
+    Math.floor(Date.now() / 1000);
+
+  const start =
+    end - days * 86400;
+
+  const url =
+    "https://query1.finance.yahoo.com/v8/finance/chart/" +
+    encodeURIComponent(symbol) +
+    `?period1=${start}&period2=${end}` +
+    "&interval=1d&events=history";
+
+  const json = await get(url);
+
+  const result =
+    json.chart?.result?.[0];
+
+  if (!result) {
+    throw new Error("Yahoo no data");
+  }
+
+  const quote =
+    result.indicators.quote[0];
+
+  const rows =
+    result.timestamp
+      .map((timestamp, i) => ({
+        date:
+          new Date(
+            timestamp * 1000
+          )
+            .toISOString()
+            .slice(0, 10),
+
+        open: num(quote.open[i]),
+        high: num(quote.high[i]),
+        low: num(quote.low[i]),
+        close: num(quote.close[i]),
+        volume: num(quote.volume[i])
+      }))
+      .filter(x => x.close != null);
+
+  const last = rows.at(-1);
+  const previous = rows.at(-2);
+
+  const meta = result.meta || {};
+
+  return {
+    quote: {
+      symbol,
+      name:
+        meta.longName ||
+        meta.shortName ||
+        symbol,
+
+      market: "US",
+
+      price: last?.close,
+
+      previousClose:
+        previous?.close,
+
+      change:
+        last && previous
+          ? last.close - previous.close
+          : null,
+
+      changePct:
+        last && previous
+          ? ((last.close - previous.close) /
+              previous.close) *
+            100
+          : null,
+
+      volume: last?.volume,
+
+      source: "Yahoo Finance"
+    },
+
+    rows
+  };
+}
+
+async function twseHistory(
+  symbol,
+  range = "6mo"
+) {
+  const months = {
+    "1mo": 2,
+    "3mo": 4,
+    "6mo": 7,
+    "1y": 13,
+    "2y": 25
+  }[range] || 7;
+
+  const today = new Date();
+
+  const rows = [];
+
+  for (let i = 0; i < months; i++) {
+    const date =
+      new Date(
+        today.getFullYear(),
+        today.getMonth() - i,
+        1
+      );
+
+    const y =
+      date.getFullYear();
+
+    const m =
+      String(
+        date.getMonth() + 1
+      ).padStart(2, "0");
+
+    const url =
+      `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${y}${m}01&stockNo=${encodeURIComponent(symbol)}`;
+
+    try {
+      const json = await get(url);
+
+      if (!json.data) continue;
+
+      for (const row of json.data) {
+        const close = num(row[6]);
+
+        if (close == null) continue;
+
+        rows.push({
+          date: row[0],
+          volume: num(row[1]),
+          open: num(row[3]),
+          high: num(row[4]),
+          low: num(row[5]),
+          close
+        });
+      }
+    } catch {}
+  }
+
+  rows.sort(
+    (a, b) =>
+      a.date.localeCompare(b.date)
+  );
+
+  return rows;
+}
+
+async function twseQuote(symbol) {
+  const rows =
+    await twseHistory(
+      symbol,
+      "1mo"
+    );
+
+  if (!rows.length) {
+    throw new Error(
+      "TWSE no data"
+    );
+  }
+
+  const last = rows.at(-1);
+  const previous = rows.at(-2);
+
+  return {
+    symbol,
+
+    name:
+      TW_NAMES[symbol] ||
+      symbol,
+
+    market: "TW",
+
+    price: last.close,
+
+    previousClose:
+      previous?.close,
+
+    change:
+      previous
+        ? last.close -
+          previous.close
+        : null,
+
+    changePct:
+      previous
+        ? ((last.close -
+            previous.close) /
+            previous.close) *
+          100
+        : null,
+
+    volume: last.volume,
+
+    source: "TWSE"
+  };
+}
+
+async function getQuote(symbol) {
+  symbol = norm(symbol);
+
+  if (isUS(symbol)) {
+    const data =
+      await yahooHistory(
+        symbol,
+        "1mo"
+      );
+
+    return data.quote;
+  }
+
+  return twseQuote(symbol);
+}
+
+async function getHistory(
+  symbol,
+  range
+) {
+  symbol = norm(symbol);
+
+  if (isUS(symbol)) {
+    const data =
+      await yahooHistory(
+        symbol,
+        range
+      );
+
+    return data.rows;
+  }
+
+  return twseHistory(
+    symbol,
+    range
   );
 }
 
-function calculateIndicators(
-  candles
+async function getInstitutional(
+  symbol
 ) {
+  if (isUS(symbol)) {
+    return {};
+  }
 
-  const closes =
-    candles.map(
-      x => x.close
-    );
+  const today =
+    new Date();
 
-  const volumes =
-    candles.map(
-      x => x.volume || 0
-    );
+  const date =
+    `${today.getFullYear()}` +
+    `${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}` +
+    `${String(
+      today.getDate()
+    ).padStart(2, "0")}`;
 
-  const MA5 =
-    sma(closes, 5);
+  try {
+    const url =
+      `https://www.twse.com.tw/rwd/zh/fund/T86?date=${date}&selectType=ALL&response=json`;
 
-  const MA20 =
-    sma(closes, 20);
+    const json =
+      await get(url);
 
-  const MA60 =
-    sma(closes, 60);
+    const row =
+      (json.data || [])
+        .find(
+          x =>
+            String(x[0]).trim() ===
+            String(symbol)
+        );
 
-  const EMA12 =
-    emaSeries(
-      closes,
-      12
-    );
+    if (!row) return {};
 
-  const EMA26 =
-    emaSeries(
-      closes,
-      26
-    );
+    return {
+      date,
 
-  const ema12 =
-    EMA12.length
-      ? EMA12[EMA12.length - 1]
-      : null;
+      foreignBuy:
+        num(row[2]),
 
-  const ema26 =
-    EMA26.length
-      ? EMA26[EMA26.length - 1]
-      : null;
+      foreignSell:
+        num(row[3]),
 
-  const macd =
-    ema12 !== null &&
-    ema26 !== null
-      ? ema12 - ema26
-      : null;
+      foreignNet:
+        num(row[4]),
 
-  let bollinger = null;
+      trustBuy:
+        num(row[5]),
 
-  if (closes.length >= 20) {
+      trustSell:
+        num(row[6]),
 
-    const data =
-      closes.slice(-20);
+      trustNet:
+        num(row[7]),
 
-    const middle =
-      data.reduce(
-        (a, b) => a + b,
-        0
-      ) / 20;
+      dealerBuy:
+        num(row[8]),
 
-    const variance =
-      data.reduce(
-        (sum, value) =>
-          sum +
-          Math.pow(
-            value - middle,
-            2
-          ),
-        0
-      ) / 20;
+      dealerSell:
+        num(row[9]),
 
-    const standardDeviation =
-      Math.sqrt(variance);
-
-    bollinger = {
-
-      middle,
-
-      upper:
-        middle +
-        standardDeviation * 2,
-
-      lower:
-        middle -
-        standardDeviation * 2
-
+      dealerNet:
+        num(row[10])
     };
-
+  } catch {
+    return {};
   }
-
-  const totalVolume =
-    volumes.reduce(
-      (a, b) => a + b,
-      0
-    );
-
-  const vwap =
-    totalVolume > 0
-      ? candles.reduce(
-          (sum, c) =>
-            sum +
-            (
-              (c.high +
-               c.low +
-               c.close) / 3
-            ) *
-            (c.volume || 0),
-          0
-        ) / totalVolume
-      : null;
-
-  const recent =
-    closes.slice(-20);
-
-  return {
-
-    MA5,
-
-    MA20,
-
-    MA60,
-
-    EMA12: ema12,
-
-    EMA26: ema26,
-
-    RSI:
-      calculateRSI(closes),
-
-    MACD: {
-      macd,
-
-      signal: null,
-
-      histogram: null
-
-    },
-
-    Bollinger:
-      bollinger,
-
-    ATR:
-      calculateATR(candles),
-
-    VWAP:
-      vwap,
-
-    volume:
-      volumes.length
-        ? volumes[volumes.length - 1]
-        : 0,
-
-    Support:
-      recent.length
-        ? Math.min(...recent)
-        : null,
-
-    Resistance:
-      recent.length
-        ? Math.max(...recent)
-        : null
-
-  };
 }
 
-/* =====================================================
-   AI ANALYSIS
-===================================================== */
-
-function createAnalysis(
-  indicators,
-  current
+async function getStock(
+  symbol
 ) {
-
-  let score = 50;
-
-  let trend = "資料不足";
-
-  let momentum = "資料不足";
-
-  let risk = "資料不足";
-
-  if (
-    Number.isFinite(current) &&
-    Number.isFinite(indicators.MA20)
-  ) {
-
-    if (
-      current >
-      indicators.MA20
-    ) {
-
-      score += 10;
-
-      trend = "偏多";
-
-    } else {
-
-      score -= 10;
-
-      trend = "偏弱";
-
-    }
-
-    if (
-      Number.isFinite(
-        indicators.MA60
-      ) &&
-      current >
-      indicators.MA60
-    ) {
-
-      score += 8;
-
-    }
-
-    if (
-      Number.isFinite(
-        indicators.RSI
-      )
-    ) {
-
-      if (
-        indicators.RSI > 55 &&
-        indicators.RSI < 70
-      ) {
-
-        score += 8;
-
-        momentum = "偏強";
-
-      } else if (
-        indicators.RSI >= 70
-      ) {
-
-        score -= 5;
-
-        momentum = "高檔";
-
-      } else if (
-        indicators.RSI < 40
-      ) {
-
-        score -= 3;
-
-        momentum = "偏弱";
-
-      } else {
-
-        momentum = "中性";
-
-      }
-
-    }
-
-    if (
-      indicators.ATR &&
-      current
-    ) {
-
-      risk =
-        indicators.ATR /
-        current >
-        0.04
-          ? "波動偏高"
-          : "一般";
-
-    }
-
-  }
-
-  score =
-    Math.max(
-      0,
-      Math.min(
-        100,
-        Math.round(score)
-      )
-    );
-
-  return {
-
-    current,
-
-    MA5:
-      indicators.MA5,
-
-    MA20:
-      indicators.MA20,
-
-    MA60:
-      indicators.MA60,
-
-    EMA12:
-      indicators.EMA12,
-
-    EMA26:
-      indicators.EMA26,
-
-    RSI:
-      indicators.RSI,
-
-    MACD:
-      indicators.MACD,
-
-    Bollinger:
-      indicators.Bollinger,
-
-    ATR:
-      indicators.ATR,
-
-    VWAP:
-      indicators.VWAP,
-
-    Support:
-      indicators.Support,
-
-    Resistance:
-      indicators.Resistance,
-
-    trend,
-
-    momentum,
-
-    risk,
-
-    score,
-
-    dataPoints:
-      indicators
-        ? 1
-        : 0,
-
-    disclaimer:
-      "IAN AI Score 為資訊整理與技術指標計算，不構成投資建議。"
-
-  };
-
-}
-
-/* =====================================================
-   STOCK
-===================================================== */
-
-async function getStock(symbol) {
-
-  symbol =
-    normSymbol(symbol);
+  symbol = norm(symbol);
 
   const quote =
     await getQuote(symbol);
 
-  const candles =
-    await history(
+  const rows =
+    await getHistory(
       symbol,
-      "1y",
-      "1d"
+      "6mo"
     );
 
   const indicators =
     calculateIndicators(
-      candles
+      rows
     );
 
   const analysis =
-    createAnalysis(
+    makeAnalysis(
       indicators,
       quote.price
     );
 
+  const institutional =
+    await getInstitutional(
+      symbol
+    );
+
   return {
-
-    symbol,
-
     quote,
-
-    history:
-      candles,
-
-    analysis
-
+    indicators,
+    analysis,
+    institutional,
+    dataPoints:
+      rows.length
   };
-
 }
 
-/* =====================================================
-   API STATUS
-===================================================== */
+async function searchStocks(
+  query
+) {
+  query =
+    String(query || "")
+      .toLowerCase();
 
-app.get(
-  "/api/status",
-  (req, res) => {
+  const stocks =
+    Object.entries(TW_NAMES)
+      .map(
+        ([symbol, name]) => ({
+          symbol,
+          name,
+          market: "TW"
+        })
+      );
 
-    res.json({
-
-      server:
-        "IAN STOCK API",
-
-      version:
-        "14.0.0",
-
-      status:
-        "ONLINE",
-
-      yahooFinance:
-        "AVAILABLE",
-
-      alphaVantageConfigured:
-        Boolean(ALPHA_KEY),
-
-      quoteRefresh:
-        "5 seconds cache",
-
-      cacheEntries:
-        CACHE.size,
-
-      historyCacheEntries:
-        HISTORY_CACHE.size,
-
-      indicators: [
-
-        "MA5",
-
-        "MA20",
-
-        "MA60",
-
-        "EMA12",
-
-        "EMA26",
-
-        "RSI",
-
-        "MACD",
-
-        "Bollinger Bands",
-
-        "ATR",
-
-        "VWAP",
-
-        "Volume",
-
-        "Support",
-
-        "Resistance"
-
-      ],
-
-      endpoints: [
-
-        "/api/quotes",
-
-        "/api/quote/:symbol",
-
-        "/api/history/:symbol",
-
-        "/api/analysis/:symbol",
-
-        "/api/stock/:symbol",
-
-        "/api/search",
-
-        "/api/market",
-
-        "/api/status"
-
-      ],
-
-      note:
-        "API keys are never returned."
-
-    });
-
-  }
-);
-
-/* =====================================================
-   SINGLE QUOTE
-===================================================== */
-
-app.get(
-  "/api/quote/:symbol",
-  async (req, res) => {
-
-    try {
-
-      const quote =
-        await getQuote(
-          req.params.symbol
-        );
-
-      res.json({
-
-        quote,
-
-        data:
-          quote
-
-      });
-
-    } catch (error) {
-
-      res
-        .status(502)
-        .json({
-
-          error:
-            "行情來源暫時無法取得",
-
-          detail:
-            error.message
-
-        });
-
+  stocks.push(
+    {
+      symbol: "NVDA",
+      name: "NVIDIA",
+      market: "US"
+    },
+    {
+      symbol: "AAPL",
+      name: "Apple",
+      market: "US"
+    },
+    {
+      symbol: "MSFT",
+      name: "Microsoft",
+      market: "US"
+    },
+    {
+      symbol: "TSLA",
+      name: "Tesla",
+      market: "US"
     }
+  );
 
+  return stocks.filter(
+    x =>
+      x.symbol
+        .toLowerCase()
+        .includes(query) ||
+      x.name
+        .toLowerCase()
+        .includes(query)
+  );
+}
+
+async function getMarket() {
+  const symbols = [
+    "2330",
+    "2317",
+    "2454",
+    "2303",
+    "2382",
+    "3711",
+    "2881",
+    "2882",
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "TSLA"
+  ];
+
+  const result = [];
+
+  for (const symbol of symbols) {
+    try {
+      result.push(
+        await getQuote(symbol)
+      );
+    } catch {
+      result.push({
+        symbol,
+
+        name:
+          TW_NAMES[symbol] ||
+          symbol,
+
+        market:
+          isUS(symbol)
+            ? "US"
+            : "TW",
+
+        price: null,
+
+        source:
+          "unavailable"
+      });
+    }
   }
-);
 
-/* =====================================================
-   MULTIPLE QUOTES
-===================================================== */
+  return result;
+}
 
-app.get(
-  "/api/quotes",
-  async (req, res) => {
-
-    const symbols =
-      String(
-        req.query.symbols ||
-        "2330,2317,2454,NVDA,AAPL,MSFT"
-      )
-      .split(",")
-      .map(normSymbol)
-      .filter(Boolean)
-      .slice(0, 40);
-
-    const output = [];
-
-    for (
-      const symbol of symbols
-    ) {
-
+const server =
+  http.createServer(
+    async (req, res) => {
       try {
-
-        const quote =
-          await getQuote(symbol);
-
-        if (quote) {
-          output.push(quote);
-        }
-
-      } catch {
-
-      }
-
-      /*
-       * 避免一次大量請求
-       */
-
-      await sleep(80);
-
-    }
-
-    res.json({
-
-      data:
-        output,
-
-      requested:
-        symbols.length,
-
-      returned:
-        output.length,
-
-      timestamp:
-        Date.now()
-
-    });
-
-  }
-);
-
-/* =====================================================
-   HISTORY
-===================================================== */
-
-app.get(
-  "/api/history/:symbol",
-  async (req, res) => {
-
-    try {
-
-      const range =
-        req.query.range ||
-        "3mo";
-
-      const interval =
-        req.query.interval ||
-        "1d";
-
-      const data =
-        await history(
-          req.params.symbol,
-          range,
-          interval
-        );
-
-      res.json({
-
-        symbol:
-          normSymbol(
-            req.params.symbol
-          ),
-
-        data,
-
-        range,
-
-        interval
-
-      });
-
-    } catch (error) {
-
-      res
-        .status(502)
-        .json({
-
-          error:
-            "歷史資料暫時無法取得",
-
-          detail:
-            error.message
-
-        });
-
-    }
-
-  }
-);
-
-/* =====================================================
-   ANALYSIS
-===================================================== */
-
-app.get(
-  "/api/analysis/:symbol",
-  async (req, res) => {
-
-    try {
-
-      const quote =
-        await getQuote(
-          req.params.symbol
-        );
-
-      const candles =
-        await history(
-          req.params.symbol,
-          "1y",
-          "1d"
-        );
-
-      const indicators =
-        calculateIndicators(
-          candles
-        );
-
-      const analysis =
-        createAnalysis(
-          indicators,
-          quote.price
-        );
-
-      res.json({
-
-        symbol:
-          normSymbol(
-            req.params.symbol
-          ),
-
-        analysis
-
-      });
-
-    } catch (error) {
-
-      res
-        .status(502)
-        .json({
-
-          error:
-            "技術分析暫時無法取得",
-
-          detail:
-            error.message
-
-        });
-
-    }
-
-  }
-);
-
-/* =====================================================
-   FULL STOCK DATA
-===================================================== */
-
-app.get(
-  "/api/stock/:symbol",
-  async (req, res) => {
-
-    try {
-
-      const result =
-        await getStock(
-          req.params.symbol
-        );
-
-      res.json(result);
-
-    } catch (error) {
-
-      res
-        .status(502)
-        .json({
-
-          error:
-            "股票資料暫時無法取得",
-
-          detail:
-            error.message
-
-        });
-
-    }
-
-  }
-);
-
-/* =====================================================
-   SEARCH
-===================================================== */
-
-app.get(
-  "/api/search",
-  async (req, res) => {
-
-    const query =
-      String(
-        req.query.q || ""
-      ).trim();
-
-    if (!query) {
-
-      return res.json({
-        data: []
-      });
-
-    }
-
-    try {
-
-      const url =
-        "https://query1.finance.yahoo.com/v1/finance/search" +
-        "?q=" +
-        encodeURIComponent(query) +
-        "&quotesCount=20" +
-        "&newsCount=0";
-
-      const json =
-        await fetchJSON(url);
-
-      const data =
-        (json.quotes || [])
-          .filter(
-            item =>
-              item.quoteType === "EQUITY" ||
-              item.quoteType === "ETF"
-          )
-          .map(
-            item => ({
-
-              symbol:
-                item.symbol,
-
-              name:
-                item.longname ||
-                item.shortname ||
-                item.symbol,
-
-              market:
-                item.exchange === "TAI"
-                  ? "TW"
-                  : "US"
-
-            })
+        const url =
+          new URL(
+            req.url,
+            "http://localhost"
           );
 
-      res.json({
-        data
-      });
+        const path =
+          url.pathname;
 
-    } catch (error) {
+        if (
+          req.method ===
+          "OPTIONS"
+        ) {
+          res.writeHead(
+            204,
+            {
+              "Access-Control-Allow-Origin":
+                "*",
+              "Access-Control-Allow-Headers":
+                "Content-Type"
+            }
+          );
 
-      res
-        .status(502)
-        .json({
+          return res.end();
+        }
 
-          error:
-            "搜尋來源暫時無法取得",
+        if (
+          path ===
+          "/api/status"
+        ) {
+          return send(
+            res,
+            200,
+            {
+              server:
+                "IAN STOCK API",
 
-          detail:
-            error.message
+              version:
+                "15.0.0",
 
-        });
+              status:
+                "ONLINE",
 
-    }
+              twse:
+                "AVAILABLE",
 
-  }
-);
+              yahooFinance:
+                "AVAILABLE",
 
-/* =====================================================
-   MARKET INDICES
-===================================================== */
+              alphaVantageConfigured:
+                !!ALPHA
+            }
+          );
+        }
 
-async function marketIndex(
-  symbol,
-  name
-) {
+        if (
+          path ===
+          "/api/market"
+        ) {
+          return send(
+            res,
+            200,
+            {
+              data:
+                await getMarket()
+            }
+          );
+        }
 
-  try {
+        if (
+          path ===
+          "/api/search"
+        ) {
+          return send(
+            res,
+            200,
+            {
+              data:
+                await searchStocks(
+                  url.searchParams.get(
+                    "q"
+                  )
+                )
+            }
+          );
+        }
 
-    const url =
-      "https://query1.finance.yahoo.com/v8/finance/chart/" +
-      encodeURIComponent(symbol) +
-      "?range=5d&interval=1d";
-
-    const json =
-      await fetchJSON(url);
-
-    const meta =
-      json?.chart?.result?.[0]?.meta;
-
-    if (
-      !meta ||
-      meta.regularMarketPrice == null
-    ) {
-
-      return null;
-
-    }
-
-    const price =
-      Number(
-        meta.regularMarketPrice
-      );
-
-    const previous =
-      Number(
-        meta.chartPreviousClose ??
-        meta.previousClose
-      );
-
-    return {
-
-      symbol,
-
-      name,
-
-      price,
-
-      previousClose:
-        previous,
-
-      change:
-        Number.isFinite(previous)
-          ? price - previous
-          : null,
-
-      changePct:
-        Number.isFinite(previous) &&
-        previous
-          ? (
-              (price - previous) /
-              previous *
-              100
+        if (
+          path ===
+          "/api/quotes"
+        ) {
+          const symbols =
+            (
+              url.searchParams.get(
+                "symbols"
+              ) ||
+              "2330,2317,2454,NVDA,AAPL,MSFT"
             )
-          : null,
+              .split(",")
+              .map(norm)
+              .filter(Boolean);
 
-      timestamp:
-        meta.regularMarketTime
-          ? meta.regularMarketTime *
-            1000
-          : Date.now()
+          const result = [];
 
-    };
+          for (
+            const symbol
+            of symbols
+          ) {
+            try {
+              result.push(
+                await getQuote(
+                  symbol
+                )
+              );
+            } catch {
+              result.push({
+                symbol,
 
-  } catch {
+                name:
+                  TW_NAMES[
+                    symbol
+                  ] ||
+                  symbol,
 
-    return null;
+                market:
+                  isUS(symbol)
+                    ? "US"
+                    : "TW",
 
-  }
+                price: null,
 
-}
+                source:
+                  "unavailable"
+              });
+            }
+          }
 
-app.get(
-  "/api/market",
-  async (req, res) => {
+          return send(
+            res,
+            200,
+            result
+          );
+        }
 
-    const symbols = [
+        const match =
+          path.match(
+            /^\/api\/(quote|history|analysis|stock|institutional)\/([^/]+)$/
+          );
 
-      ["^TWII", "加權指數"],
+        if (match) {
+          const type =
+            match[1];
 
-      ["^GSPC", "S&P 500"],
+          const symbol =
+            norm(
+              decodeURIComponent(
+                match[2]
+              )
+            );
 
-      ["^IXIC", "NASDAQ"],
+          if (
+            type ===
+            "quote"
+          ) {
+            return send(
+              res,
+              200,
+              await getQuote(
+                symbol
+              )
+            );
+          }
 
-      ["^DJI", "Dow Jones"]
+          if (
+            type ===
+            "history"
+          ) {
+            return send(
+              res,
+              200,
+              {
+                symbol,
 
-    ];
+                data:
+                  await getHistory(
+                    symbol,
+                    url.searchParams.get(
+                      "range"
+                    ) ||
+                    "6mo"
+                  )
+              }
+            );
+          }
 
-    const data = [];
+          if (
+            type ===
+            "institutional"
+          ) {
+            return send(
+              res,
+              200,
+              await getInstitutional(
+                symbol
+              )
+            );
+          }
 
-    for (
-      const [symbol, name]
-      of symbols
-    ) {
+          const stock =
+            await getStock(
+              symbol
+            );
 
-      const result =
-        await marketIndex(
-          symbol,
-          name
+          if (
+            type ===
+            "analysis"
+          ) {
+            return send(
+              res,
+              200,
+              stock.analysis
+            );
+          }
+
+          return send(
+            res,
+            200,
+            stock
+          );
+        }
+
+        return send(
+          res,
+          404,
+          {
+            error:
+              "Not found"
+          }
         );
+      } catch (error) {
+        console.error(error);
 
-      if (result) {
-        data.push(result);
+        return send(
+          res,
+          500,
+          {
+            error:
+              error.message ||
+              "Server error"
+          }
+        );
       }
-
     }
+  );
 
-    res.json({
-
-      data,
-
-      timestamp:
-        Date.now()
-
-    });
-
-  }
-);
-
-/* =====================================================
-   CACHE
-===================================================== */
-
-app.get(
-  "/api/cache",
-  (req, res) => {
-
-    res.json({
-
-      quoteCache:
-        CACHE.size,
-
-      historyCache:
-        HISTORY_CACHE.size,
-
-      timestamp:
-        Date.now()
-
-    });
-
-  }
-);
-
-/* =====================================================
-   STATIC FRONTEND
-===================================================== */
-
-app.use(
-  express.static(
-    path.join(
-      __dirname,
-      "public"
-    )
-  )
-);
-
-app.get(
-  "*",
-  (req, res) => {
-
-    res.sendFile(
-      path.join(
-        __dirname,
-        "public",
-        "index.html"
-      )
-    );
-
-  }
-);
-
-/* =====================================================
-   START
-===================================================== */
-
-app.listen(
+server.listen(
   PORT,
   () => {
-
     console.log(
-      "================================="
+      `IAN STOCK API running on port ${PORT}`
     );
-
-    console.log(
-      "IAN STOCK API 14.0.0"
-    );
-
-    console.log(
-      "PORT:",
-      PORT
-    );
-
-    console.log(
-      "Yahoo Finance: ENABLED"
-    );
-
-    console.log(
-      "Alpha Vantage:",
-      ALPHA_KEY
-        ? "CONFIGURED"
-        : "NOT CONFIGURED"
-    );
-
-    console.log(
-      "================================="
-    );
-
   }
 );
