@@ -2,34 +2,29 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>IAN STOCK</title>
 
 <style>
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
 html,body{
   margin:0;
   padding:0;
-  background:#080a0f;
+  background:#07090d;
   color:#f5f7fa;
   font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",
   "Noto Sans TC",Arial,sans-serif;
 }
 
-body{
-  padding-bottom:90px;
-}
+body{padding-bottom:100px}
 
-button{
-  font:inherit;
-}
+button,input{font:inherit}
+
+button{cursor:pointer}
 
 .app{
+  width:100%;
   max-width:900px;
   margin:auto;
   padding:18px 16px 30px;
@@ -39,202 +34,241 @@ button{
 
 .header{
   display:flex;
-  align-items:center;
   justify-content:space-between;
-  margin-bottom:22px;
+  align-items:center;
+  margin-bottom:18px;
 }
 
 .logo{
-  font-size:24px;
-  font-weight:800;
+  font-size:25px;
+  font-weight:900;
   letter-spacing:1px;
 }
 
-.status{
-  font-size:12px;
-  color:#7ee2a8;
+.live{
   display:flex;
   align-items:center;
   gap:6px;
+  font-size:11px;
+  color:#65e49c;
 }
 
-.dot{
+.live-dot{
   width:7px;
   height:7px;
-  background:#39d98a;
   border-radius:50%;
+  background:#36d982;
 }
 
 /* Search */
 
+.search-box{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#11151d;
+  border:1px solid #252b35;
+  border-radius:16px;
+  padding:0 15px;
+  margin-bottom:17px;
+}
+
+.search-icon{
+  color:#858d99;
+  font-size:20px;
+}
+
 .search{
   width:100%;
-  background:#12151d;
-  border:1px solid #242936;
-  border-radius:15px;
-  padding:15px 16px;
+  border:0;
+  outline:0;
+  background:transparent;
   color:white;
-  outline:none;
+  padding:15px 0;
   font-size:16px;
-  margin-bottom:18px;
 }
 
 .search::placeholder{
-  color:#707784;
+  color:#6c7480;
 }
 
-/* Market */
+/* Market switch */
 
-.market-tabs{
-  display:flex;
-  gap:10px;
+.market-switch{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  background:#11151d;
+  padding:5px;
+  border-radius:14px;
   margin-bottom:20px;
 }
 
-.market-tab{
-  flex:1;
+.market-btn{
   border:0;
-  border-radius:12px;
-  padding:13px;
-  background:#141821;
-  color:#8d95a3;
-  font-weight:700;
+  background:transparent;
+  color:#747d89;
+  padding:12px;
+  border-radius:10px;
+  font-weight:800;
 }
 
-.market-tab.active{
+.market-btn.active{
   background:#f5f7fa;
-  color:#090b10;
+  color:#080a0f;
 }
 
-/* Cards */
+/* Section */
+
+.section-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:22px 0 11px;
+}
 
 .section-title{
   font-size:18px;
-  font-weight:800;
-  margin:22px 0 12px;
+  font-weight:850;
 }
 
-.market-card{
-  background:#11141b;
-  border:1px solid #202530;
+.section-more{
+  color:#7e8794;
+  font-size:12px;
+}
+
+/* Stock card */
+
+.stock-card{
+  background:#10141b;
+  border:1px solid #202630;
   border-radius:17px;
-  padding:17px;
-  margin-bottom:10px;
+  padding:16px;
+  margin-bottom:9px;
+  transition:.15s;
 }
 
-.market-top{
+.stock-card:active{
+  transform:scale(.985);
+}
+
+.stock-row{
   display:flex;
   justify-content:space-between;
   align-items:center;
 }
 
-.symbol{
-  font-size:17px;
-  font-weight:800;
+.stock-left{
+  min-width:0;
 }
 
-.name{
-  color:#858d9b;
+.stock-symbol{
+  font-size:17px;
+  font-weight:850;
+}
+
+.stock-name{
+  color:#7d8693;
   font-size:12px;
   margin-top:4px;
 }
 
-.price{
-  font-size:20px;
-  font-weight:800;
+.stock-right{
   text-align:right;
 }
 
-.change{
-  font-size:13px;
+.stock-price{
+  font-size:19px;
+  font-weight:850;
+}
+
+.stock-change{
+  font-size:12px;
   margin-top:4px;
-  text-align:right;
 }
 
-.up{
-  color:#42d392;
-}
+.up{color:#42d392}
+.down{color:#ff6575}
+.gray{color:#747d89}
 
-.down{
-  color:#ff6575;
-}
+/* Empty */
 
-.waiting{
-  color:#737b88;
-  font-size:13px;
+.empty{
+  text-align:center;
+  color:#68717e;
+  padding:55px 20px;
+  line-height:1.7;
 }
 
 /* Refresh */
 
-.refresh-area{
-  margin-top:20px;
+.refresh{
+  margin-top:18px;
 }
 
 .refresh-btn{
   width:100%;
   border:0;
+  border-radius:15px;
   background:#f5f7fa;
   color:#080a0f;
-  border-radius:14px;
   padding:15px;
-  font-weight:800;
+  font-weight:850;
 }
 
-.cache{
+.cache-text{
   text-align:center;
-  color:#656d7a;
+  color:#626b77;
   font-size:11px;
   margin-top:9px;
 }
 
-/* Bottom nav */
+/* Portfolio */
 
-.bottom-nav{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  z-index:100;
-  padding:
-    8px
-    10px
-    calc(8px + env(safe-area-inset-bottom));
-  background:rgba(10,12,17,.96);
-  backdrop-filter:blur(18px);
-  border-top:1px solid #20242d;
+.balance-card{
+  background:linear-gradient(145deg,#151a23,#0d1016);
+  border:1px solid #252b35;
+  border-radius:20px;
+  padding:21px;
 }
 
-.nav-inner{
-  max-width:650px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:4px;
+.balance-label{
+  color:#818a97;
+  font-size:12px;
 }
 
-.nav-btn{
-  min-height:62px;
-  border:0;
-  border-radius:13px;
-  background:transparent;
-  color:#777f8c;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  gap:5px;
-  font-size:11px;
-  font-weight:600;
+.balance{
+  font-size:31px;
+  font-weight:900;
+  margin-top:7px;
 }
 
-.nav-icon{
-  font-size:21px;
-  line-height:1;
+.balance-sub{
+  margin-top:7px;
+  font-size:12px;
+  color:#5fd997;
 }
 
-.nav-btn.active{
-  color:white;
-  background:#181c25;
+/* AI */
+
+.ai-card{
+  background:#11151d;
+  border:1px solid #242a34;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:10px;
+}
+
+.ai-title{
+  font-size:17px;
+  font-weight:850;
+}
+
+.ai-desc{
+  color:#818a96;
+  font-size:13px;
+  line-height:1.7;
+  margin-top:9px;
 }
 
 /* Pages */
@@ -247,16 +281,57 @@ button{
   display:block;
 }
 
-.empty{
-  padding:50px 20px;
-  text-align:center;
-  color:#6d7582;
+/* Bottom navigation */
+
+.bottom-nav{
+  position:fixed;
+  z-index:1000;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:8px 9px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(8,10,14,.96);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid #222731;
+}
+
+.nav-inner{
+  max-width:680px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:4px;
+}
+
+.nav-btn{
+  min-height:66px;
+  border:0;
+  border-radius:14px;
+  background:transparent;
+  color:#707986;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-size:11px;
+  font-weight:700;
+}
+
+.nav-icon{
+  font-size:21px;
+  line-height:1;
+}
+
+.nav-btn.active{
+  background:#181d26;
+  color:white;
 }
 
 /* Desktop */
 
 @media(min-width:700px){
-
   .app{
     padding-top:30px;
   }
@@ -265,11 +340,10 @@ button{
     left:50%;
     right:auto;
     transform:translateX(-50%);
-    width:650px;
-    border:1px solid #242936;
+    width:680px;
+    border:1px solid #252b35;
     border-radius:18px 18px 0 0;
   }
-
 }
 </style>
 </head>
@@ -278,158 +352,238 @@ button{
 
 <div class="app">
 
-  <!-- HOME -->
-  <section id="home" class="page active">
+<!-- ================= HOME ================= -->
 
-    <div class="header">
-      <div class="logo">IAN STOCK</div>
+<section id="homePage" class="page active">
 
-      <div class="status">
-        <span class="dot"></span>
-        MARKET
-      </div>
+  <div class="header">
+    <div class="logo">IAN STOCK</div>
+
+    <div class="live">
+      <span class="live-dot"></span>
+      MARKET
     </div>
+  </div>
+
+  <div class="search-box">
+    <span class="search-icon">⌕</span>
 
     <input
-      id="search"
+      id="homeSearch"
       class="search"
-      placeholder="搜尋股票代號或公司名稱，例如 NVDA、台積電"
-      oninput="searchStock()"
+      placeholder="搜尋股票代號或公司名稱"
+      oninput="searchHome()"
     >
+  </div>
 
-    <div class="market-tabs">
-      <button
-        class="market-tab active"
-        onclick="switchMarket('tw',this)"
-      >
-        🇹🇼 台股
-      </button>
+  <div class="market-switch">
 
-      <button
-        class="market-tab"
-        onclick="switchMarket('us',this)"
-      >
-        🇺🇸 美股
-      </button>
-    </div>
+    <button
+      id="twBtn"
+      class="market-btn active"
+      onclick="changeMarket('tw')"
+    >
+      🇹🇼 台股
+    </button>
 
+    <button
+      id="usBtn"
+      class="market-btn"
+      onclick="changeMarket('us')"
+    >
+      🇺🇸 美股
+    </button>
+
+  </div>
+
+  <div class="section-head">
     <div class="section-title">
       熱門股票
     </div>
 
-    <div id="stocks"></div>
+    <div class="section-more">
+      IAN STOCK
+    </div>
+  </div>
 
-    <div class="refresh-area">
+  <div id="stockList"></div>
 
-      <button
-        class="refresh-btn"
-        onclick="refreshQuotes(true)"
-      >
-        ↻ 更新行情
-      </button>
+  <div class="refresh">
 
-      <div id="cacheText" class="cache">
-        尚未取得行情
-      </div>
+    <button
+      class="refresh-btn"
+      onclick="refreshQuotes(true)"
+    >
+      ↻ 更新行情
+    </button>
 
+    <div id="cacheText" class="cache-text">
+      尚未取得行情
     </div>
 
-  </section>
+  </div>
+
+</section>
 
 
-  <!-- SEARCH -->
-  <section id="searchPage" class="page">
+<!-- ================= SEARCH ================= -->
 
+<section id="searchPage" class="page">
+
+  <div class="section-head">
     <div class="section-title">
       🔍 搜尋股票
     </div>
+  </div>
+
+  <div class="search-box">
+
+    <span class="search-icon">⌕</span>
 
     <input
+      id="searchInput"
       class="search"
-      placeholder="輸入股票代號或公司名稱"
-      oninput="searchStockPage()"
+      placeholder="輸入代號，例如 2330 / NVDA"
+      oninput="searchPage()"
     >
 
-    <div id="searchResults" class="empty">
-      輸入股票代號開始搜尋
+  </div>
+
+  <div id="searchResults">
+    <div class="empty">
+      輸入股票代號或公司名稱開始搜尋
     </div>
+  </div>
 
-  </section>
+</section>
 
 
-  <!-- WATCHLIST -->
-  <section id="watchlist" class="page">
+<!-- ================= WATCHLIST ================= -->
 
+<section id="watchlistPage" class="page">
+
+  <div class="section-head">
     <div class="section-title">
       ⭐ 我的自選
     </div>
+  </div>
+
+  <div id="watchlistContent">
 
     <div class="empty">
-      目前還沒有自選股票
+      點擊股票旁邊的 ☆<br>
+      就可以加入自選
     </div>
 
-  </section>
+  </div>
+
+</section>
 
 
-  <!-- PORTFOLIO -->
-  <section id="portfolio" class="page">
+<!-- ================= PORTFOLIO ================= -->
 
+<section id="portfolioPage" class="page">
+
+  <div class="section-head">
     <div class="section-title">
       💼 投資組合
     </div>
+  </div>
 
-    <div class="market-card">
+  <div class="balance-card">
 
-      <div class="name">
-        模擬資產
-      </div>
-
-      <div class="price" style="font-size:30px;margin-top:8px;">
-        NT$1,000,000
-      </div>
-
-      <div class="change up" style="text-align:left;margin-top:8px;">
-        模擬交易模式
-      </div>
-
+    <div class="balance-label">
+      模擬資產
     </div>
 
-    <div class="empty">
-      尚未建立持倉
+    <div class="balance">
+      NT$1,000,000
     </div>
 
-  </section>
+    <div class="balance-sub">
+      PAPER TRADING · 模擬交易
+    </div>
+
+  </div>
+
+  <div class="section-head">
+    <div class="section-title">
+      持倉
+    </div>
+  </div>
+
+  <div class="empty">
+    目前尚未建立模擬持倉
+  </div>
+
+</section>
 
 
-  <!-- AI -->
-  <section id="ai" class="page">
+<!-- ================= AI ================= -->
 
+<section id="aiPage" class="page">
+
+  <div class="section-head">
     <div class="section-title">
       🤖 IAN AI
     </div>
+  </div>
 
-    <div class="market-card">
+  <div class="ai-card">
 
-      <div class="symbol">
-        AI 股票分析
-      </div>
-
-      <div class="name">
-        技術面・基本面・市場情緒・風險
-      </div>
-
-      <div style="margin-top:18px;color:#8b93a0;line-height:1.7;">
-        輸入股票後，IAN AI 將在後續版本提供完整分析。
-      </div>
-
+    <div class="ai-title">
+      Technical Analysis
     </div>
 
-  </section>
+    <div class="ai-desc">
+      技術面分析：MA、RSI、MACD、成交量、
+      支撐與壓力。
+    </div>
+
+  </div>
+
+  <div class="ai-card">
+
+    <div class="ai-title">
+      Fundamental
+    </div>
+
+    <div class="ai-desc">
+      基本面、營收、獲利、估值與公司資訊。
+    </div>
+
+  </div>
+
+  <div class="ai-card">
+
+    <div class="ai-title">
+      Market Sentiment
+    </div>
+
+    <div class="ai-desc">
+      市場情緒、新聞與公開投資者觀點。
+    </div>
+
+  </div>
+
+  <div class="ai-card">
+
+    <div class="ai-title">
+      Risk
+    </div>
+
+    <div class="ai-desc">
+      顯示可能影響股票價格的風險與重要事件。
+    </div>
+
+  </div>
+
+</section>
 
 </div>
 
 
-<!-- BOTTOM NAV -->
+<!-- ================= BOTTOM NAV ================= -->
 
 <nav class="bottom-nav">
 
@@ -437,7 +591,7 @@ button{
 
     <button
       class="nav-btn active"
-      onclick="showPage('home',this)"
+      onclick="showPage('homePage',this)"
     >
       <span class="nav-icon">⌂</span>
       首頁
@@ -453,15 +607,15 @@ button{
 
     <button
       class="nav-btn"
-      onclick="showPage('watchlist',this)"
+      onclick="showPage('watchlistPage',this)"
     >
-      <span class="nav-icon">★</span>
+      <span class="nav-icon">☆</span>
       自選
     </button>
 
     <button
       class="nav-btn"
-      onclick="showPage('portfolio',this)"
+      onclick="showPage('portfolioPage',this)"
     >
       <span class="nav-icon">▣</span>
       投資組合
@@ -469,7 +623,7 @@ button{
 
     <button
       class="nav-btn"
-      onclick="showPage('ai',this)"
+      onclick="showPage('aiPage',this)"
     >
       <span class="nav-icon">AI</span>
       AI
@@ -482,39 +636,101 @@ button{
 
 <script>
 
+/* =========================
+   API
+========================= */
+
 const API_BASE =
   "https://ian-stock-api.onrender.com";
 
 
+/* =========================
+   台股
+========================= */
+
 const TW_STOCKS = [
-  {
-    symbol:"2330",
-    name:"台積電"
-  },
-  {
-    symbol:"2317",
-    name:"鴻海"
-  },
-  {
-    symbol:"2454",
-    name:"聯發科"
-  }
+
+  {symbol:"2330",name:"台積電"},
+  {symbol:"2317",name:"鴻海"},
+  {symbol:"2454",name:"聯發科"},
+  {symbol:"2303",name:"聯電"},
+  {symbol:"2308",name:"台達電"},
+  {symbol:"2382",name:"廣達"},
+  {symbol:"2357",name:"華碩"},
+  {symbol:"3231",name:"緯創"},
+  {symbol:"6669",name:"緯穎"},
+  {symbol:"2603",name:"長榮"},
+  {symbol:"2615",name:"萬海"},
+  {symbol:"2881",name:"富邦金"},
+  {symbol:"2882",name:"國泰金"},
+  {symbol:"2891",name:"中信金"},
+  {symbol:"2412",name:"中華電"},
+  {symbol:"3008",name:"大立光"},
+  {symbol:"3017",name:"奇鋐"},
+  {symbol:"3037",name:"欣興"},
+  {symbol:"2327",name:"國巨"},
+  {symbol:"3711",name:"日月光投控"},
+  {symbol:"6770",name:"力積電"},
+  {symbol:"2002",name:"中鋼"},
+  {symbol:"2886",name:"兆豐金"},
+  {symbol:"2892",name:"第一金"},
+  {symbol:"5880",name:"合庫金"},
+  {symbol:"1101",name:"台泥"},
+  {symbol:"1301",name:"台塑"},
+  {symbol:"1303",name:"南亞"},
+  {symbol:"1326",name:"台化"},
+  {symbol:"2408",name:"南亞科"},
+  {symbol:"2379",name:"瑞昱"},
+  {symbol:"3034",name:"聯詠"},
+  {symbol:"3443",name:"創意"},
+  {symbol:"3661",name:"世芯-KY"},
+  {symbol:"2301",name:"光寶科"},
+  {symbol:"2324",name:"仁寶"},
+  {symbol:"2356",name:"英業達"},
+  {symbol:"2376",name:"技嘉"},
+  {symbol:"2377",name:"微星"},
+  {symbol:"2395",name:"研華"}
+
 ];
 
 
+/* =========================
+   美股
+========================= */
+
 const US_STOCKS = [
-  {
-    symbol:"NVDA",
-    name:"NVIDIA"
-  },
-  {
-    symbol:"AAPL",
-    name:"Apple"
-  },
-  {
-    symbol:"MSFT",
-    name:"Microsoft"
-  }
+
+  {symbol:"NVDA",name:"NVIDIA"},
+  {symbol:"AAPL",name:"Apple"},
+  {symbol:"MSFT",name:"Microsoft"},
+  {symbol:"AMZN",name:"Amazon"},
+  {symbol:"GOOGL",name:"Alphabet"},
+  {symbol:"META",name:"Meta"},
+  {symbol:"TSLA",name:"Tesla"},
+  {symbol:"AMD",name:"AMD"},
+  {symbol:"AVGO",name:"Broadcom"},
+  {symbol:"NFLX",name:"Netflix"},
+  {symbol:"INTC",name:"Intel"},
+  {symbol:"TSM",name:"Taiwan Semiconductor"},
+  {symbol:"MU",name:"Micron"},
+  {symbol:"PLTR",name:"Palantir"},
+  {symbol:"COIN",name:"Coinbase"},
+  {symbol:"AMAT",name:"Applied Materials"},
+  {symbol:"QCOM",name:"Qualcomm"},
+  {symbol:"ADBE",name:"Adobe"},
+  {symbol:"ORCL",name:"Oracle"},
+  {symbol:"CRM",name:"Salesforce"},
+  {symbol:"COST",name:"Costco"},
+  {symbol:"WMT",name:"Walmart"},
+  {symbol:"JPM",name:"JPMorgan"},
+  {symbol:"V",name:"Visa"},
+  {symbol:"MA",name:"Mastercard"},
+  {symbol:"DIS",name:"Disney"},
+  {symbol:"UBER",name:"Uber"},
+  {symbol:"SHOP",name:"Shopify"},
+  {symbol:"SNOW",name:"Snowflake"},
+  {symbol:"ARM",name:"Arm Holdings"}
+
 ];
 
 
@@ -522,16 +738,23 @@ let currentMarket = "tw";
 
 let quotes = {};
 
+let watchlist =
+  JSON.parse(
+    localStorage.getItem("ian_watchlist") || "[]"
+  );
 
-// =======================
-// 頁面切換
-// =======================
+
+/* =========================
+   Page
+========================= */
 
 function showPage(id,button){
 
   document
     .querySelectorAll(".page")
-    .forEach(p => p.classList.remove("active"));
+    .forEach(page=>{
+      page.classList.remove("active");
+    });
 
   document
     .getElementById(id)
@@ -539,99 +762,401 @@ function showPage(id,button){
 
   document
     .querySelectorAll(".nav-btn")
-    .forEach(b => b.classList.remove("active"));
+    .forEach(btn=>{
+      btn.classList.remove("active");
+    });
 
   button.classList.add("active");
 
 }
 
 
-// =======================
-// 台股 / 美股
-// =======================
+/* =========================
+   Market
+========================= */
 
-function switchMarket(market,button){
+function changeMarket(market){
 
   currentMarket = market;
 
   document
-    .querySelectorAll(".market-tab")
-    .forEach(b => b.classList.remove("active"));
+    .getElementById("twBtn")
+    .classList.toggle(
+      "active",
+      market === "tw"
+    );
 
-  button.classList.add("active");
+  document
+    .getElementById("usBtn")
+    .classList.toggle(
+      "active",
+      market === "us"
+    );
 
   renderStocks();
 
 }
 
 
-// =======================
-// 顯示股票
-// =======================
+/* =========================
+   All stocks
+========================= */
 
-function renderStocks(){
+function allStocks(){
+
+  return [
+    ...TW_STOCKS,
+    ...US_STOCKS
+  ];
+
+}
+
+
+/* =========================
+   Render
+========================= */
+
+function renderStocks(list=null){
 
   const container =
-    document.getElementById("stocks");
+    document.getElementById("stockList");
 
   const stocks =
-    currentMarket === "tw"
+    list ||
+    (
+      currentMarket === "tw"
       ? TW_STOCKS
-      : US_STOCKS;
+      : US_STOCKS
+    );
 
   container.innerHTML = "";
 
-  stocks.forEach(stock => {
+  stocks.forEach(stock=>{
 
     const q =
       quotes[stock.symbol];
 
-    let priceHTML =
-      `<div class="waiting">等待行情</div>`;
+    let price =
+      `<span class="gray">等待行情</span>`;
 
     if(q){
 
+      const change =
+        Number(q.changePct || 0);
+
       const cls =
-        q.changePct >= 0
-          ? "up"
-          : "down";
+        change >= 0
+        ? "up"
+        : "down";
 
       const sign =
-        q.changePct >= 0
-          ? "+"
-          : "";
+        change >= 0
+        ? "+"
+        : "";
 
-      priceHTML = `
-        <div class="price">
+      price = `
+
+        <div class="stock-price">
           ${q.price}
         </div>
 
-        <div class="change ${cls}">
-          ${sign}${q.changePct}%
+        <div class="stock-change ${cls}">
+          ${sign}${change}%
         </div>
+
       `;
+
     }
+
+    const saved =
+      watchlist.includes(stock.symbol);
 
     container.innerHTML += `
 
-      <div class="market-card">
+      <div class="stock-card">
 
-        <div class="market-top">
+        <div class="stock-row">
 
-          <div>
+          <div class="stock-left">
 
-            <div class="symbol">
+            <div class="stock-symbol">
               ${stock.symbol}
             </div>
 
-            <div class="name">
+            <div class="stock-name">
               ${stock.name}
             </div>
 
           </div>
 
+          <div class="stock-right">
+
+            ${price}
+
+          </div>
+
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:flex-end;
+          margin-top:10px;
+        ">
+
+          <button
+            onclick="toggleWatch('${stock.symbol}')"
+            style="
+              border:0;
+              background:transparent;
+              color:#858e9b;
+              font-size:20px;
+              padding:4px 7px;
+            "
+          >
+            ${saved ? "★" : "☆"}
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+  });
+
+}
+
+
+/* =========================
+   Search Home
+========================= */
+
+function searchHome(){
+
+  const keyword =
+    document
+      .getElementById("homeSearch")
+      .value
+      .trim()
+      .toUpperCase();
+
+  if(!keyword){
+
+    renderStocks();
+
+    return;
+
+  }
+
+  const results =
+    allStocks().filter(stock=>
+
+      stock.symbol
+        .toUpperCase()
+        .includes(keyword)
+
+      ||
+
+      stock.name
+        .toUpperCase()
+        .includes(keyword)
+
+    );
+
+  renderStocks(results);
+
+}
+
+
+/* =========================
+   Search Page
+========================= */
+
+function searchPage(){
+
+  const keyword =
+    document
+      .getElementById("searchInput")
+      .value
+      .trim()
+      .toUpperCase();
+
+  const container =
+    document.getElementById("searchResults");
+
+  if(!keyword){
+
+    container.innerHTML = `
+      <div class="empty">
+        輸入股票代號或公司名稱開始搜尋
+      </div>
+    `;
+
+    return;
+
+  }
+
+  const results =
+    allStocks().filter(stock=>
+
+      stock.symbol
+        .toUpperCase()
+        .includes(keyword)
+
+      ||
+
+      stock.name
+        .toUpperCase()
+        .includes(keyword)
+
+    );
+
+
+  if(!results.length){
+
+    container.innerHTML = `
+      <div class="empty">
+        找不到符合的股票
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    results.map(stock=>{
+
+      const q =
+        quotes[stock.symbol];
+
+      return `
+
+        <div class="stock-card">
+
+          <div class="stock-row">
+
+            <div>
+              <div class="stock-symbol">
+                ${stock.symbol}
+              </div>
+
+              <div class="stock-name">
+                ${stock.name}
+              </div>
+            </div>
+
+            <div class="stock-right">
+
+              ${
+                q
+                ? q.price
+                : "等待行情"
+              }
+
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+}
+
+
+/* =========================
+   Watchlist
+========================= */
+
+function toggleWatch(symbol){
+
+  if(watchlist.includes(symbol)){
+
+    watchlist =
+      watchlist.filter(
+        x=>x !== symbol
+      );
+
+  }else{
+
+    watchlist.push(symbol);
+
+  }
+
+  localStorage.setItem(
+    "ian_watchlist",
+    JSON.stringify(watchlist)
+  );
+
+  renderStocks();
+
+  renderWatchlist();
+
+}
+
+
+function renderWatchlist(){
+
+  const container =
+    document.getElementById(
+      "watchlistContent"
+    );
+
+  if(!watchlist.length){
+
+    container.innerHTML = `
+      <div class="empty">
+        目前還沒有自選股票
+      </div>
+    `;
+
+    return;
+
+  }
+
+  const stocks =
+    allStocks()
+      .filter(stock =>
+        watchlist.includes(stock.symbol)
+      );
+
+  container.innerHTML = "";
+
+  stocks.forEach(stock=>{
+
+    const q =
+      quotes[stock.symbol];
+
+    container.innerHTML += `
+
+      <div class="stock-card">
+
+        <div class="stock-row">
+
           <div>
-            ${priceHTML}
+
+            <div class="stock-symbol">
+              ${stock.symbol}
+            </div>
+
+            <div class="stock-name">
+              ${stock.name}
+            </div>
+
+          </div>
+
+          <div class="stock-right">
+
+            ${
+              q
+              ? q.price
+              : "等待行情"
+            }
+
           </div>
 
         </div>
@@ -645,55 +1170,70 @@ function renderStocks(){
 }
 
 
-// =======================
-// API + 快取
-// =======================
+/* =========================
+   Quotes
+========================= */
 
 async function refreshQuotes(force=false){
 
-  const cached =
-    localStorage.getItem("ian_quotes");
+  const saved =
+    localStorage.getItem(
+      "ian_quotes"
+    );
 
-  const cacheTime =
-    localStorage.getItem("ian_quotes_time");
+  const savedTime =
+    localStorage.getItem(
+      "ian_quotes_time"
+    );
 
   const now =
     Date.now();
 
-  const ONE_HOUR =
+  const CACHE_TIME =
     60 * 60 * 1000;
 
 
-  // 如果有快取而且沒有過期
+  /*
+    如果沒有強制更新，
+    且本機快取還有效，
+    直接使用快取。
+  */
+
   if(
     !force &&
-    cached &&
-    cacheTime &&
-    now - Number(cacheTime) < ONE_HOUR
+    saved &&
+    savedTime &&
+    now - Number(savedTime) < CACHE_TIME
   ){
 
     quotes =
-      JSON.parse(cached);
+      JSON.parse(saved);
 
     renderStocks();
 
+    renderWatchlist();
+
     updateCacheText(
-      Number(cacheTime)
+      Number(savedTime)
     );
 
     return;
+
   }
 
 
   try{
 
-    document.getElementById("cacheText").innerText =
-      "正在取得最新行情…";
+    document
+      .getElementById("cacheText")
+      .innerText =
+      "正在取得行情…";
 
 
     const response =
       await fetch(
-        API_BASE + "/api/quotes"
+        API_BASE +
+        "/api/quotes"
       );
 
 
@@ -701,7 +1241,7 @@ async function refreshQuotes(force=false){
       await response.json();
 
 
-    data.forEach(q => {
+    data.forEach(q=>{
 
       quotes[q.symbol] = q;
 
@@ -722,188 +1262,49 @@ async function refreshQuotes(force=false){
 
     renderStocks();
 
+    renderWatchlist();
+
     updateCacheText(now);
 
 
   }catch(error){
 
-    document.getElementById("cacheText").innerText =
-      "目前無法取得最新行情，已保留上一筆資料";
+    document
+      .getElementById("cacheText")
+      .innerText =
+      "無法取得最新行情，保留上一筆資料";
 
   }
 
 }
 
 
-// =======================
-// 快取文字
-// =======================
+/* =========================
+   Cache text
+========================= */
 
 function updateCacheText(time){
 
   const date =
     new Date(time);
 
-  document.getElementById("cacheText").innerText =
-    "行情更新：" +
-    date.toLocaleTimeString("zh-TW") +
-    " · 快取 1 小時";
+  document
+    .getElementById("cacheText")
+    .innerText =
+      "行情更新：" +
+      date.toLocaleTimeString("zh-TW") +
+      " · 本機快取 1 小時";
 
 }
 
 
-// =======================
-// 搜尋
-// =======================
-
-function searchStock(){
-
-  const keyword =
-    document
-      .getElementById("search")
-      .value
-      .trim()
-      .toUpperCase();
-
-  if(!keyword){
-
-    renderStocks();
-
-    return;
-
-  }
-
-  const all =
-    [...TW_STOCKS,...US_STOCKS];
-
-  const results =
-    all.filter(stock =>
-      stock.symbol
-        .toUpperCase()
-        .includes(keyword)
-      ||
-      stock.name
-        .toUpperCase()
-        .includes(keyword)
-    );
-
-
-  const container =
-    document.getElementById("stocks");
-
-  container.innerHTML = "";
-
-  results.forEach(stock => {
-
-    const q =
-      quotes[stock.symbol];
-
-    container.innerHTML += `
-
-      <div class="market-card">
-
-        <div class="market-top">
-
-          <div>
-            <div class="symbol">
-              ${stock.symbol}
-            </div>
-
-            <div class="name">
-              ${stock.name}
-            </div>
-          </div>
-
-          <div>
-            ${
-              q
-              ? q.price
-              : "等待行情"
-            }
-          </div>
-
-        </div>
-
-      </div>
-
-    `;
-
-  });
-
-}
-
-
-function searchStockPage(){
-
-  const input =
-    event.target.value
-      .trim()
-      .toUpperCase();
-
-  const all =
-    [...TW_STOCKS,...US_STOCKS];
-
-  const results =
-    all.filter(stock =>
-      stock.symbol
-        .toUpperCase()
-        .includes(input)
-      ||
-      stock.name
-        .toUpperCase()
-        .includes(input)
-    );
-
-
-  const container =
-    document.getElementById("searchResults");
-
-
-  if(!input){
-
-    container.innerHTML =
-      "輸入股票代號開始搜尋";
-
-    return;
-
-  }
-
-
-  if(!results.length){
-
-    container.innerHTML =
-      "找不到符合的股票";
-
-    return;
-
-  }
-
-
-  container.innerHTML =
-    results.map(stock => `
-
-      <div class="market-card">
-
-        <div class="symbol">
-          ${stock.symbol}
-        </div>
-
-        <div class="name">
-          ${stock.name}
-        </div>
-
-      </div>
-
-    `).join("");
-
-}
-
-
-// =======================
-// 啟動
-// =======================
+/* =========================
+   Start
+========================= */
 
 renderStocks();
+
+renderWatchlist();
 
 refreshQuotes(false);
 
