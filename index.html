@@ -17,403 +17,383 @@ html,body{
   padding:0;
   background:#07090d;
   color:#f5f7fa;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans TC",Arial,sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }
 
 body{
-  padding-bottom:105px;
+  padding-bottom:90px;
 }
 
-button,input,select{
+button,input{
   font:inherit;
 }
 
-button{
-  border:0;
+.app{
+  max-width:760px;
+  margin:auto;
+  padding:18px 16px 100px;
 }
 
-.app{
-  max-width:920px;
-  margin:auto;
-  padding:18px 16px 120px;
-}
+/* HEADER */
 
 .header{
   display:flex;
-  justify-content:space-between;
   align-items:center;
+  justify-content:space-between;
   margin-bottom:18px;
 }
 
 .logo{
-  font-size:29px;
-  font-weight:900;
+  font-size:27px;
+  font-weight:800;
   letter-spacing:.5px;
 }
 
-.status{
-  border:1px solid #235e43;
-  color:#42d392;
-  border-radius:20px;
-  padding:7px 11px;
-  font-size:12px;
+.logo span{
+  color:#37d67a;
 }
 
-.status.red{
-  color:#ff6875;
-  border-color:#71303a;
+.status{
+  padding:7px 11px;
+  border-radius:20px;
+  background:#18201b;
+  color:#37d67a;
+  font-size:12px;
+  font-weight:700;
 }
+
+.status.error{
+  background:#271619;
+  color:#ff5964;
+}
+
+/* SEARCH */
 
 .search{
-  width:100%;
-  height:54px;
-  border-radius:18px;
-  background:#11151d;
-  border:1px solid #252d39;
-  color:#fff;
-  padding:0 18px;
-  outline:none;
-  margin-bottom:14px;
-}
-
-.market-switch{
   display:flex;
-  gap:4px;
-  background:#11151d;
-  padding:4px;
-  border-radius:16px;
+  gap:9px;
+  margin-bottom:18px;
 }
 
-.market-switch button{
+.search input{
   flex:1;
-  height:50px;
-  background:transparent;
-  color:#8c96a5;
-  border-radius:13px;
+  min-width:0;
+  background:#11151c;
+  border:1px solid #242a34;
+  color:white;
+  border-radius:14px;
+  padding:13px 15px;
+  outline:none;
+}
+
+.search button{
+  background:#37d67a;
+  color:#06100a;
+  border:0;
+  border-radius:14px;
+  padding:0 17px;
   font-weight:800;
 }
 
-.market-switch button.active{
-  background:#202631;
-  color:#fff;
-}
+/* MARKET */
 
 .section-title{
-  font-size:25px;
-  font-weight:900;
-  margin:30px 0 14px;
-}
-
-.grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:12px;
-}
-
-.card,
-.metric,
-.stock-card,
-.ai-box,
-.trade,
-.chart-box,
-.notice{
-  background:#11151d;
-  border:1px solid #252d39;
-  border-radius:20px;
-}
-
-.card{
-  padding:18px;
-}
-
-.card-title{
-  color:#8d97a6;
-  font-size:14px;
-}
-
-.big{
-  margin-top:7px;
-  font-size:26px;
-  font-weight:900;
-}
-
-.green{
-  color:#42d392!important;
-}
-
-.red{
-  color:#ff6875!important;
-}
-
-.gray{
-  color:#8993a2!important;
-}
-
-.stock-card{
-  padding:18px;
-  margin-bottom:10px;
-  cursor:pointer;
-}
-
-.stock-top{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:10px;
+  margin:24px 0 11px;
 }
 
-.stock-name{
-  font-size:19px;
-  font-weight:900;
+.section-title h2{
+  font-size:17px;
+  margin:0;
 }
 
-.stock-symbol{
-  color:#8993a2;
+.section-title small{
+  color:#747d89;
+}
+
+.market-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+}
+
+.market-card{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:15px;
+  padding:13px 10px;
+}
+
+.market-card .name{
+  color:#8e97a5;
+  font-size:12px;
+}
+
+.market-card .price{
+  font-size:18px;
+  font-weight:800;
   margin-top:5px;
 }
 
-.stock-price{
-  font-size:22px;
-  font-weight:900;
-  text-align:right;
-}
-
-.stock-change{
-  text-align:right;
+.market-card .change{
+  font-size:12px;
   margin-top:4px;
 }
 
-.empty{
-  text-align:center;
-  padding:35px 10px;
-  color:#8993a2;
+.up{
+  color:#37d67a;
 }
+
+.down{
+  color:#ff5964;
+}
+
+.wait{
+  color:#777f8c;
+}
+
+/* STOCK */
+
+.stock-list{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+}
+
+.stock{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:16px;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:pointer;
+}
+
+.stock-left{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.stock-symbol{
+  font-size:16px;
+  font-weight:800;
+}
+
+.stock-name{
+  color:#818a97;
+  font-size:12px;
+}
+
+.stock-right{
+  text-align:right;
+}
+
+.stock-price{
+  font-size:17px;
+  font-weight:800;
+}
+
+.stock-change{
+  font-size:12px;
+  margin-top:3px;
+}
+
+/* DETAIL */
 
 .hidden{
   display:none!important;
 }
 
 .back{
-  background:#1a202a;
-  color:#fff;
-  border-radius:13px;
-  padding:10px 16px;
-  margin-bottom:14px;
-}
-
-.detail{
-  background:#11151d;
-  border:1px solid #252d39;
-  border-radius:22px;
-  padding:20px;
-}
-
-.detail-name{
-  font-size:28px;
-  font-weight:900;
-}
-
-.detail-symbol{
-  color:#8993a2;
-  margin-top:4px;
-}
-
-.detail-price{
-  font-size:43px;
-  font-weight:900;
-  margin-top:17px;
-}
-
-.detail-change{
-  font-size:17px;
-  margin-top:5px;
-}
-
-.action-row{
-  display:flex;
-  gap:8px;
-  margin-top:16px;
-  flex-wrap:wrap;
-}
-
-.action-btn{
-  background:#202631;
-  color:#fff;
-  padding:11px 15px;
-  border-radius:13px;
-  font-weight:700;
-}
-
-.range-tabs{
-  display:flex;
-  gap:7px;
-  overflow:auto;
-  margin:14px 0;
-}
-
-.range-tabs button{
-  flex:none;
-  background:#11151d;
-  border:1px solid #252d39;
-  color:#8993a2;
-  border-radius:13px;
+  background:#161b23;
+  color:white;
+  border:1px solid #272e39;
+  border-radius:12px;
   padding:9px 13px;
+  margin-bottom:16px;
 }
 
-.range-tabs button.active{
-  background:#202631;
-  color:#fff;
-}
-
-.chart-box{
-  padding:10px;
-  overflow:hidden;
-}
-
-#priceChart{
-  width:100%;
-  height:310px;
-  display:block;
-}
-
-.metric{
-  padding:17px;
-}
-
-.metric-label{
-  color:#8993a2;
-  font-size:13px;
-}
-
-.metric-value{
-  margin-top:7px;
-  font-size:22px;
-  font-weight:900;
-}
-
-.ai-box{
-  padding:19px;
-  margin-bottom:12px;
-}
-
-.ai-title{
-  font-size:20px;
-  font-weight:900;
-}
-
-.ai-score{
-  font-size:36px;
-  font-weight:900;
-  margin-top:10px;
-}
-
-.ai-tag{
-  display:inline-block;
-  margin-top:8px;
-  margin-right:5px;
-  padding:6px 11px;
-  border:1px solid #286846;
-  color:#42d392;
-  border-radius:20px;
-  font-size:13px;
-}
-
-.list{
-  margin:12px 0 0;
-  padding-left:20px;
-  line-height:1.8;
-  color:#c4cad3;
-}
-
-.trade{
+.detail-head{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:18px;
   padding:18px;
 }
 
-.trade input{
-  width:100%;
-  height:48px;
-  border-radius:13px;
-  background:#090c11;
-  border:1px solid #252d39;
-  color:#fff;
-  padding:0 13px;
-  margin:5px 0;
-  outline:none;
+.detail-symbol{
+  font-size:14px;
+  color:#8b94a1;
 }
 
-.primary{
-  width:100%;
-  height:50px;
-  border-radius:14px;
-  background:#f5f7fa;
-  color:#07090d;
-  font-weight:900;
-  margin-top:7px;
+.detail-name{
+  font-size:25px;
+  font-weight:800;
+  margin-top:3px;
 }
 
-.alert-card{
-  background:#11151d;
-  border:1px solid #252d39;
+.detail-price{
+  font-size:32px;
+  font-weight:850;
+  margin-top:15px;
+}
+
+.detail-change{
+  margin-top:4px;
+  font-size:14px;
+}
+
+/* SCORE */
+
+.score-box{
+  margin-top:12px;
+  background:#11151c;
+  border:1px solid #202631;
   border-radius:18px;
-  padding:16px;
-  margin-bottom:10px;
+  padding:17px;
 }
 
-.notice{
-  padding:14px;
-  color:#8993a2;
-  line-height:1.6;
+.score-title{
+  color:#8e97a5;
+  font-size:12px;
 }
+
+.score{
+  font-size:36px;
+  font-weight:900;
+  margin-top:3px;
+}
+
+.score-note{
+  color:#707986;
+  font-size:11px;
+  margin-top:5px;
+}
+
+/* TECH */
+
+.tech-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:9px;
+}
+
+.tech{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:15px;
+  padding:14px;
+}
+
+.tech-label{
+  color:#7e8794;
+  font-size:11px;
+}
+
+.tech-value{
+  font-size:17px;
+  font-weight:800;
+  margin-top:6px;
+}
+
+/* ANALYSIS */
+
+.analysis{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:17px;
+  padding:16px;
+}
+
+.analysis-row{
+  display:flex;
+  justify-content:space-between;
+  padding:10px 0;
+  border-bottom:1px solid #202631;
+}
+
+.analysis-row:last-child{
+  border-bottom:0;
+}
+
+.analysis-label{
+  color:#858e9b;
+}
+
+/* CHART */
+
+.chart{
+  background:#11151c;
+  border:1px solid #202631;
+  border-radius:18px;
+  padding:13px;
+  overflow:hidden;
+}
+
+canvas{
+  width:100%;
+  height:250px;
+  display:block;
+}
+
+/* BOTTOM */
 
 .bottom{
   position:fixed;
+  bottom:0;
   left:0;
   right:0;
-  bottom:0;
-  z-index:100;
-  background:rgba(7,9,13,.97);
-  border-top:1px solid #252d39;
-  backdrop-filter:blur(18px);
-  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(8,10,14,.96);
+  backdrop-filter:blur(15px);
+  border-top:1px solid #202631;
+  display:flex;
+  justify-content:center;
+  z-index:50;
 }
 
 .bottom-inner{
-  max-width:920px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:4px;
+  width:min(760px,100%);
+  display:flex;
+  justify-content:space-around;
+  padding:12px 10px calc(12px + env(safe-area-inset-bottom));
 }
 
 .nav{
-  min-height:64px;
-  background:transparent;
-  color:#778190;
-  border-radius:16px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  gap:4px;
+  color:#727b88;
+  text-align:center;
+  font-size:11px;
 }
 
 .nav.active{
-  background:#1a202a;
-  color:#fff;
+  color:#37d67a;
 }
 
 .nav-icon{
-  font-size:21px;
+  font-size:19px;
+  margin-bottom:3px;
 }
 
-.nav-text{
-  font-size:11px;
-  font-weight:800;
+/* LOADING */
+
+.loading{
+  text-align:center;
+  color:#707986;
+  padding:30px 0;
 }
 
-@media(min-width:700px){
-  .grid{
-    grid-template-columns:repeat(3,1fr);
+/* MOBILE */
+
+@media(max-width:430px){
+  .market-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .tech-grid{
+    grid-template-columns:repeat(2,1fr);
   }
 }
 </style>
@@ -423,2864 +403,1184 @@ button{
 
 <div class="app">
 
-<header class="header">
-  <div class="logo">IAN STOCK</div>
-  <div id="status" class="status">● SYSTEM</div>
-</header>
+  <!-- HOME -->
 
-<input
-  id="search"
-  class="search"
-  placeholder="搜尋股票代號或公司名稱，例如 2330 / NVDA"
->
+  <div id="homePage">
 
-<div id="searchResults"></div>
-
-<!-- 首頁 -->
-<section id="homePage">
-
-  <div class="market-switch">
-
-    <button id="twBtn"
-      class="active"
-      onclick="setMarket('TW')">
-      🇹🇼 台股
-    </button>
-
-    <button id="usBtn"
-      onclick="setMarket('US')">
-      🇺🇸 美股
-    </button>
-
-  </div>
-
-  <div class="section-title">
-    市場脈動
-  </div>
-
-  <div class="grid">
-
-    <div class="card">
-      <div class="card-title">台灣加權指數</div>
-      <div id="twii" class="big">載入中</div>
+    <div class="header">
+      <div class="logo">IAN <span>STOCK</span></div>
+      <div id="apiStatus" class="status">連線中</div>
     </div>
 
-    <div class="card">
-      <div class="card-title">NASDAQ</div>
-      <div id="nasdaq" class="big">載入中</div>
+    <div class="search">
+      <input
+        id="searchInput"
+        placeholder="搜尋股票代號 / 公司名稱"
+        autocomplete="off"
+      >
+      <button onclick="searchStock()">搜尋</button>
     </div>
 
-    <div class="card">
-      <div class="card-title">S&P 500</div>
-      <div id="sp500" class="big">載入中</div>
+    <div id="searchResult"></div>
+
+    <div class="section-title">
+      <h2>市場脈動</h2>
+      <small id="updateTime">等待資料</small>
     </div>
 
-    <div class="card">
-      <div class="card-title">USD / TWD</div>
-      <div id="usdtwd" class="big">載入中</div>
-    </div>
+    <div id="marketGrid" class="market-grid">
+      <div class="market-card">
+        <div class="name">台積電</div>
+        <div class="price wait">待資料</div>
+      </div>
 
-  </div>
+      <div class="market-card">
+        <div class="name">鴻海</div>
+        <div class="price wait">待資料</div>
+      </div>
 
-  <div class="section-title">
-    熱門股票
-  </div>
+      <div class="market-card">
+        <div class="name">聯發科</div>
+        <div class="price wait">待資料</div>
+      </div>
 
-  <div id="hotStocks"></div>
+      <div class="market-card">
+        <div class="name">NVIDIA</div>
+        <div class="price wait">待資料</div>
+      </div>
 
-</section>
+      <div class="market-card">
+        <div class="name">Apple</div>
+        <div class="price wait">待資料</div>
+      </div>
 
-
-<!-- 搜尋 -->
-<section id="searchPage" class="hidden">
-
-  <div class="section-title">
-    搜尋股票
-  </div>
-
-  <div class="notice">
-    可搜尋股票代號或公司名稱。
-  </div>
-
-  <div style="height:12px"></div>
-
-  <div id="allStocks"></div>
-
-</section>
-
-
-<!-- 自選 -->
-<section id="watchPage" class="hidden">
-
-  <div class="section-title">
-    ⭐ 自選股
-  </div>
-
-  <div id="watchList"></div>
-
-</section>
-
-
-<!-- 投資組合 -->
-<section id="portfolioPage" class="hidden">
-
-  <div class="section-title">
-    投資組合
-  </div>
-
-  <div class="grid">
-
-    <div class="card">
-      <div class="card-title">現金</div>
-      <div id="cash" class="big">
-        NT$1,000,000
+      <div class="market-card">
+        <div class="name">Microsoft</div>
+        <div class="price wait">待資料</div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">持倉市值</div>
-      <div id="positionValue" class="big">
-        NT$0
-      </div>
+    <div class="section-title">
+      <h2>熱門股票</h2>
+      <small>LIVE</small>
     </div>
 
-    <div class="card">
-      <div class="card-title">未實現損益</div>
-      <div id="pnl" class="big">
-        NT$0
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">報酬率</div>
-      <div id="roi" class="big">
-        0%
-      </div>
-    </div>
+    <div id="stockList" class="stock-list"></div>
 
   </div>
 
-  <div class="section-title">
-    模擬交易
-  </div>
 
-  <div class="trade">
+  <!-- DETAIL -->
 
-    <input
-      id="tradeSymbol"
-      placeholder="股票代號，例如 2330 / NVDA"
-    >
+  <div id="detailPage" class="hidden">
 
-    <input
-      id="tradeShares"
-      type="number"
-      placeholder="股數"
-    >
-
-    <input
-      id="tradePrice"
-      type="number"
-      placeholder="買入價格"
-    >
-
-    <button
-      class="primary"
-      onclick="buyStock()">
-      模擬買入
+    <button class="back" onclick="showHome()">
+      ← 返回
     </button>
 
-  </div>
+    <div id="detailContent">
 
-  <div class="section-title">
-    持倉
-  </div>
+      <div class="loading">
+        載入股票資料中...
+      </div>
 
-  <div id="positions"></div>
-
-</section>
-
-
-<!-- 警報 -->
-<section id="alertsPage" class="hidden">
-
-  <div class="section-title">
-    🔔 價格警報
-  </div>
-
-  <div class="trade">
-
-    <input
-      id="alertSymbol"
-      placeholder="股票代號，例如 NVDA"
-    >
-
-    <input
-      id="alertPrice"
-      type="number"
-      placeholder="觸發價格"
-    >
-
-    <select
-      id="alertType"
-      style="
-      width:100%;
-      height:48px;
-      margin:5px 0;
-      border-radius:13px;
-      background:#090c11;
-      border:1px solid #252d39;
-      color:white;
-      padding:0 12px;
-      "
-    >
-
-      <option value="above">
-        價格高於
-      </option>
-
-      <option value="below">
-        價格低於
-      </option>
-
-    </select>
-
-    <button
-      class="primary"
-      onclick="createAlert()">
-      建立警報
-    </button>
+    </div>
 
   </div>
-
-  <div class="section-title">
-    我的警報
-  </div>
-
-  <div id="alertList"></div>
-
-</section>
-
-
-<!-- AI -->
-<section id="aiPage" class="hidden">
-
-  <div class="section-title">
-    🤖 IAN AI
-  </div>
-
-  <div class="notice">
-    IAN AI 根據歷史行情與技術指標產生分析摘要。
-  </div>
-
-  <div style="height:12px"></div>
-
-  <input
-    id="aiSymbol"
-    class="search"
-    placeholder="輸入 NVDA / AAPL / 2330"
-  >
-
-  <button
-    class="primary"
-    onclick="runAI()">
-    開始分析
-  </button>
-
-  <div id="aiResult" style="margin-top:14px"></div>
-
-</section>
-
-
-<!-- 股票詳細頁 -->
-<section id="detailPage" class="hidden">
-
-  <button
-    class="back"
-    onclick="showPage('home')">
-    ← 返回
-  </button>
-
-  <div id="detail"></div>
-
-</section>
 
 </div>
 
 
-<!-- 底部導航 -->
-<nav class="bottom">
+<!-- BOTTOM NAV -->
 
-<div class="bottom-inner">
+<div class="bottom">
 
-<button
-  id="navHome"
-  class="nav active"
-  onclick="showPage('home')">
+  <div class="bottom-inner">
 
-  <div class="nav-icon">⌂</div>
-  <div class="nav-text">首頁</div>
+    <div class="nav active" onclick="showHome()">
+      <div class="nav-icon">⌂</div>
+      首頁
+    </div>
 
-</button>
+    <div class="nav" onclick="focusSearch()">
+      <div class="nav-icon">⌕</div>
+      搜尋
+    </div>
 
-<button
-  id="navSearch"
-  class="nav"
-  onclick="showPage('search')">
+    <div class="nav">
+      <div class="nav-icon">☆</div>
+      自選
+    </div>
 
-  <div class="nav-icon">⌕</div>
-  <div class="nav-text">搜尋</div>
+    <div class="nav">
+      <div class="nav-icon">◈</div>
+      投資組合
+    </div>
 
-</button>
+    <div class="nav">
+      <div class="nav-icon">✦</div>
+      IAN AI
+    </div>
 
-<button
-  id="navWatch"
-  class="nav"
-  onclick="showPage('watch')">
-
-  <div class="nav-icon">☆</div>
-  <div class="nav-text">自選</div>
-
-</button>
-
-<button
-  id="navPortfolio"
-  class="nav"
-  onclick="showPage('portfolio')">
-
-  <div class="nav-icon">▣</div>
-  <div class="nav-text">投資組合</div>
-
-</button>
-
-<button
-  id="navAlerts"
-  class="nav"
-  onclick="showPage('alerts')">
-
-  <div class="nav-icon">♢</div>
-  <div class="nav-text">警報</div>
-
-</button>
-
-<button
-  id="navAI"
-  class="nav"
-  onclick="showPage('ai')">
-
-  <div class="nav-icon">AI</div>
-  <div class="nav-text">AI</div>
-
-</button>
+  </div>
 
 </div>
-</nav>
 
 
 <script>
 
-const API =
+/* =====================================================
+   IAN STOCK FRONTEND V10
+   ===================================================== */
+
+const API_BASE =
   "https://ian-stock-api.onrender.com";
 
 
-let market = "TW";
+const STOCKS = [
 
-let watchlist =
-  JSON.parse(
-    localStorage.getItem(
-      "ian_watchlist"
-    ) || "[]"
-  );
+  {
+    symbol:"2330",
+    name:"台積電",
+    market:"TW"
+  },
 
-let positions =
-  JSON.parse(
-    localStorage.getItem(
-      "ian_positions"
-    ) || "[]"
-  );
+  {
+    symbol:"2317",
+    name:"鴻海",
+    market:"TW"
+  },
 
-let alerts =
-  JSON.parse(
-    localStorage.getItem(
-      "ian_alerts"
-    ) || "[]"
-  );
+  {
+    symbol:"2454",
+    name:"聯發科",
+    market:"TW"
+  },
 
+  {
+    symbol:"NVDA",
+    name:"NVIDIA",
+    market:"US"
+  },
 
-const stocks = [
+  {
+    symbol:"AAPL",
+    name:"Apple",
+    market:"US"
+  },
 
-  {symbol:"2330",name:"台積電",market:"TW"},
-  {symbol:"2317",name:"鴻海",market:"TW"},
-  {symbol:"2454",name:"聯發科",market:"TW"},
-  {symbol:"2303",name:"聯電",market:"TW"},
-  {symbol:"2308",name:"台達電",market:"TW"},
-  {symbol:"2382",name:"廣達",market:"TW"},
-  {symbol:"2603",name:"長榮",market:"TW"},
-  {symbol:"2615",name:"萬海",market:"TW"},
-  {symbol:"2881",name:"富邦金",market:"TW"},
-  {symbol:"2882",name:"國泰金",market:"TW"},
-
-  {symbol:"NVDA",name:"NVIDIA",market:"US"},
-  {symbol:"AAPL",name:"Apple",market:"US"},
-  {symbol:"MSFT",name:"Microsoft",market:"US"},
-  {symbol:"AMZN",name:"Amazon",market:"US"},
-  {symbol:"GOOGL",name:"Alphabet",market:"US"},
-  {symbol:"META",name:"Meta",market:"US"},
-  {symbol:"TSLA",name:"Tesla",market:"US"},
-  {symbol:"AMD",name:"AMD",market:"US"},
-  {symbol:"AVGO",name:"Broadcom",market:"US"},
-  {symbol:"TSM",name:"Taiwan Semiconductor",market:"US"},
-  {symbol:"NFLX",name:"Netflix",market:"US"},
-  {symbol:"COST",name:"Costco",market:"US"},
-  {symbol:"ORCL",name:"Oracle",market:"US"},
-  {symbol:"INTC",name:"Intel",market:"US"},
-  {symbol:"QCOM",name:"Qualcomm",market:"US"}
+  {
+    symbol:"MSFT",
+    name:"Microsoft",
+    market:"US"
+  }
 
 ];
 
 
-function save(){
-
-  localStorage.setItem(
-    "ian_watchlist",
-    JSON.stringify(watchlist)
-  );
-
-  localStorage.setItem(
-    "ian_positions",
-    JSON.stringify(positions)
-  );
-
-  localStorage.setItem(
-    "ian_alerts",
-    JSON.stringify(alerts)
-  );
-}
+let quotes = [];
+let currentSymbol = null;
 
 
-function num(v){
+/* =====================================================
+   API
+   ===================================================== */
 
-  if(
-    v === null ||
-    v === undefined ||
-    !Number.isFinite(Number(v))
-  ){
-    return "待資料";
+async function api(path){
+
+  const response =
+    await fetch(API_BASE + path, {
+      cache:"no-store"
+    });
+
+  if(!response.ok){
+
+    throw new Error(
+      "API " + response.status
+    );
+
   }
 
-  return Number(v).toLocaleString(
-    "zh-TW",
-    {
-      maximumFractionDigits:2
-    }
-  );
+  return response.json();
+
 }
 
 
-function money(v){
+/* =====================================================
+   STATUS
+   ===================================================== */
 
-  return "NT$" +
-    Number(v || 0).toLocaleString(
+function setStatus(ok){
+
+  const el =
+    document.getElementById("apiStatus");
+
+  if(ok){
+
+    el.textContent =
+      "● LIVE DATA";
+
+    el.className =
+      "status";
+
+  }else{
+
+    el.textContent =
+      "API ERROR";
+
+    el.className =
+      "status error";
+
+  }
+
+}
+
+
+/* =====================================================
+   FORMAT
+   ===================================================== */
+
+function money(value){
+
+  if(
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ){
+
+    return "待資料";
+
+  }
+
+  return Number(value)
+    .toLocaleString(
       "zh-TW",
       {
         maximumFractionDigits:2
       }
     );
+
 }
 
 
-function color(v){
+function percent(value){
 
-  if(Number(v)>0)
-    return "green";
+  if(
+    value === null ||
+    value === undefined ||
+    !Number.isFinite(Number(value))
+  ){
 
-  if(Number(v)<0)
-    return "red";
+    return "--";
 
-  return "gray";
-}
-
-
-async function api(path){
-
-  const response =
-    await fetch(
-      API + path
-    );
-
-  if(!response.ok){
-    throw new Error(
-      "API " + response.status
-    );
   }
 
-  return response.json();
+  const n = Number(value);
+
+  return (
+    n >= 0 ? "+" : ""
+  ) +
+  n.toFixed(2) +
+  "%";
+
 }
 
 
-/* =========================
-   PAGE
-========================= */
+function priceClass(value){
 
-function showPage(page){
+  if(
+    value === null ||
+    value === undefined
+  ){
 
-  const pages = [
-    "home",
-    "search",
-    "watch",
-    "portfolio",
-    "alerts",
-    "ai",
-    "detail"
-  ];
+    return "wait";
 
-  pages.forEach(
-    p => {
+  }
 
-      const el =
-        document.getElementById(
-          p + "Page"
-        );
+  return Number(value) >= 0
+    ? "up"
+    : "down";
 
-      if(el){
-
-        el.classList.toggle(
-          "hidden",
-          p !== page
-        );
-
-      }
-
-    }
-  );
+}
 
 
-  document
-    .querySelectorAll(".nav")
-    .forEach(
-      x =>
-        x.classList.remove(
-          "active"
-        )
-    );
+/* =====================================================
+   HOME
+   ===================================================== */
 
+async function loadQuotes(){
 
-  const nav = {
+  try{
 
-    home:"navHome",
-    search:"navSearch",
-    watch:"navWatch",
-    portfolio:"navPortfolio",
-    alerts:"navAlerts",
-    ai:"navAI"
+    const data =
+      await api("/api/quotes");
 
-  };
+    if(!Array.isArray(data)){
 
-
-  if(nav[page]){
-
-    document
-      .getElementById(
-        nav[page]
-      )
-      .classList.add(
-        "active"
+      throw new Error(
+        "資料格式錯誤"
       );
 
+    }
+
+    quotes = data;
+
+    setStatus(true);
+
+    renderMarket();
+
+    renderStocks();
+
+    document.getElementById(
+      "updateTime"
+    ).textContent =
+      new Date().toLocaleTimeString(
+        "zh-TW",
+        {
+          hour:"2-digit",
+          minute:"2-digit",
+          second:"2-digit"
+        }
+      );
+
+  }catch(error){
+
+    console.error(error);
+
+    setStatus(false);
+
   }
 
-
-  if(page === "search")
-    renderAll();
-
-  if(page === "watch")
-    renderWatch();
-
-  if(page === "portfolio")
-    renderPortfolio();
-
-  if(page === "alerts")
-    renderAlerts();
-
-  window.scrollTo(0,0);
 }
 
 
-/* =========================
+/* =====================================================
    MARKET
-========================= */
+   ===================================================== */
 
-function setMarket(m){
+function renderMarket(){
 
-  market = m;
-
-  document
-    .getElementById("twBtn")
-    .classList.toggle(
-      "active",
-      m === "TW"
+  const grid =
+    document.getElementById(
+      "marketGrid"
     );
 
-  document
-    .getElementById("usBtn")
-    .classList.toggle(
-      "active",
-      m === "US"
-    );
+  grid.innerHTML = "";
 
-  loadHot();
-}
+  for(const stock of STOCKS){
 
-
-/* =========================
-   STATUS
-========================= */
-
-async function loadStatus(){
-
-  try{
-
-    const d =
-      await api(
-        "/api/status"
+    const q =
+      quotes.find(
+        x =>
+          String(x.symbol)
+            .toUpperCase()
+          ===
+          stock.symbol
       );
 
-    const el =
-      document.getElementById(
-        "status"
-      );
+    const price =
+      q?.price ?? null;
 
+    const change =
+      q?.changePct ?? null;
 
-    if(
-      d.yahooFinance === "OK" &&
-      d.history === "OK"
-    ){
+    grid.innerHTML += `
 
-      el.textContent =
-        "● LIVE DATA";
+      <div
+        class="market-card"
+        onclick="openStock('${stock.symbol}')"
+      >
 
-      el.className =
-        "status";
+        <div class="name">
+          ${stock.name}
+        </div>
 
-    }else{
+        <div class="price">
+          ${money(price)}
+        </div>
 
-      el.textContent =
-        "● API ERROR";
+        <div
+          class="change ${
+            change === null
+              ? "wait"
+              : change >= 0
+                ? "up"
+                : "down"
+          }"
+        >
+          ${percent(change)}
+        </div>
 
-      el.className =
-        "status red";
+      </div>
 
-    }
-
-  }catch{
-
-    document
-      .getElementById(
-        "status"
-      )
-      .textContent =
-      "● OFFLINE";
+    `;
 
   }
+
 }
 
 
-/* =========================
-   MARKET DATA
-========================= */
+/* =====================================================
+   STOCK LIST
+   ===================================================== */
 
-async function loadMarket(){
-
-  try{
-
-    const d =
-      await api(
-        "/api/market"
-      );
-
-
-    document
-      .getElementById("twii")
-      .textContent =
-      num(
-        d.taiwan?.price
-      );
-
-
-    document
-      .getElementById("nasdaq")
-      .textContent =
-      num(
-        d.nasdaq?.price
-      );
-
-
-    document
-      .getElementById("sp500")
-      .textContent =
-      num(
-        d.sp500?.price
-      );
-
-
-    document
-      .getElementById("usdtwd")
-      .textContent =
-      num(
-        d.usdTwd?.price
-      );
-
-  }catch(e){
-
-    console.log(e);
-
-  }
-}
-
-
-/* =========================
-   HOT STOCKS
-========================= */
-
-async function loadHot(){
+function renderStocks(){
 
   const box =
     document.getElementById(
-      "hotStocks"
+      "stockList"
     );
-
-
-  const list =
-    stocks
-      .filter(
-        s =>
-          s.market === market
-      )
-      .slice(0,8);
-
-
-  box.innerHTML =
-    `<div class="empty">行情載入中...</div>`;
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/quotes?symbols=" +
-        list
-          .map(
-            s=>s.symbol
-          )
-          .join(",")
-      );
-
-
-    box.innerHTML = "";
-
-
-    list.forEach(
-      stock => {
-
-        const q =
-          (d.results || [])
-            .find(
-              x =>
-                x.symbol ===
-                stock.symbol
-            );
-
-
-        const el =
-          document.createElement(
-            "div"
-          );
-
-
-        el.className =
-          "stock-card";
-
-
-        el.innerHTML = `
-
-          <div class="stock-top">
-
-            <div>
-
-              <div class="stock-name">
-                ${stock.name}
-              </div>
-
-              <div class="stock-symbol">
-                ${stock.symbol}
-              </div>
-
-            </div>
-
-            <div>
-
-              <div class="stock-price">
-                ${
-                  q
-                    ? num(q.price)
-                    : "待資料"
-                }
-              </div>
-
-              <div class="
-                stock-change
-                ${
-                  q
-                    ? color(q.changePct)
-                    : "gray"
-                }
-              ">
-                ${
-                  q
-                    ? (
-                        q.changePct >= 0
-                          ? "+"
-                          : ""
-                      ) +
-                      num(q.changePct) +
-                      "%"
-                    : "待資料"
-                }
-              </div>
-
-            </div>
-
-          </div>
-
-        `;
-
-
-        el.onclick =
-          () =>
-            openStock(
-              stock.symbol
-            );
-
-
-        box.appendChild(el);
-
-      }
-    );
-
-  }catch{
-
-    box.innerHTML =
-      `<div class="empty">行情暫時無法取得</div>`;
-
-  }
-}
-
-
-/* =========================
-   SEARCH
-========================= */
-
-let searchTimer;
-
-
-document
-  .getElementById("search")
-  .addEventListener(
-    "input",
-    function(){
-
-      clearTimeout(
-        searchTimer
-      );
-
-
-      const q =
-        this.value
-          .trim()
-          .toUpperCase();
-
-
-      if(!q){
-
-        document
-          .getElementById(
-            "searchResults"
-          )
-          .innerHTML = "";
-
-        return;
-      }
-
-
-      searchTimer =
-        setTimeout(
-          async()=>{
-
-            try{
-
-              const d =
-                await api(
-                  "/api/search?q=" +
-                  encodeURIComponent(q)
-                );
-
-
-              const box =
-                document.getElementById(
-                  "searchResults"
-                );
-
-
-              box.innerHTML = "";
-
-
-              (d.results || [])
-                .slice(0,8)
-                .forEach(
-                  s => {
-
-                    const el =
-                      document.createElement(
-                        "div"
-                      );
-
-
-                    el.className =
-                      "stock-card";
-
-
-                    el.innerHTML = `
-
-                      <div class="stock-name">
-                        ${s.name}
-                      </div>
-
-                      <div class="stock-symbol">
-                        ${s.symbol} · ${s.market}
-                      </div>
-
-                    `;
-
-
-                    el.onclick =
-                      () =>
-                        openStock(
-                          s.symbol
-                        );
-
-
-                    box.appendChild(
-                      el
-                    );
-
-                  }
-                );
-
-            }catch{}
-
-          },
-          250
-        );
-
-    }
-  );
-
-
-/* =========================
-   ALL STOCKS
-========================= */
-
-function renderAll(){
-
-  const box =
-    document.getElementById(
-      "allStocks"
-    );
-
 
   box.innerHTML = "";
 
+  for(const stock of STOCKS){
 
-  stocks
-    .filter(
-      s =>
-        s.market === market
-    )
-    .forEach(
-      s => {
+    const q =
+      quotes.find(
+        x =>
+          String(x.symbol)
+            .toUpperCase()
+          ===
+          stock.symbol
+      );
 
-        const el =
-          document.createElement(
-            "div"
-          );
+    const price =
+      q?.price ?? null;
 
+    const change =
+      q?.changePct ?? null;
 
-        el.className =
-          "stock-card";
+    box.innerHTML += `
 
+      <div
+        class="stock"
+        onclick="openStock('${stock.symbol}')"
+      >
 
-        el.innerHTML = `
-
-          <div class="stock-name">
-            ${s.name}
-          </div>
+        <div class="stock-left">
 
           <div class="stock-symbol">
-            ${s.symbol}
+            ${stock.symbol}
           </div>
 
-        `;
+          <div class="stock-name">
+            ${stock.name} · ${stock.market}
+          </div>
 
+        </div>
 
-        el.onclick =
-          () =>
-            openStock(
-              s.symbol
-            );
+        <div class="stock-right">
 
+          <div class="stock-price">
+            ${money(price)}
+          </div>
 
-        box.appendChild(
-          el
-        );
+          <div
+            class="stock-change ${
+              change === null
+                ? "wait"
+                : change >= 0
+                  ? "up"
+                  : "down"
+            }"
+          >
+            ${percent(change)}
+          </div>
 
-      }
-    );
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
 }
 
 
-/* =========================
-   STOCK DETAIL
-========================= */
+/* =====================================================
+   SEARCH
+   ===================================================== */
 
-async function openStock(symbol){
+async function searchStock(){
 
-  showPage("detail");
-
-
-  const box =
+  const input =
     document.getElementById(
-      "detail"
+      "searchInput"
     );
 
+  const q =
+    input.value.trim();
 
-  box.innerHTML =
-    `<div class="empty">
-      正在取得 ${symbol} 資料...
-    </div>`;
+  if(!q){
 
+    document.getElementById(
+      "searchResult"
+    ).innerHTML = "";
+
+    return;
+
+  }
 
   try{
 
-    const d =
+    const result =
+      await api(
+        "/api/search?q=" +
+        encodeURIComponent(q)
+      );
+
+    const box =
+      document.getElementById(
+        "searchResult"
+      );
+
+    if(!result.length){
+
+      box.innerHTML = `
+        <div class="loading">
+          找不到股票
+        </div>
+      `;
+
+      return;
+
+    }
+
+    box.innerHTML =
+
+      `<div class="stock-list">` +
+
+      result.map(stock => `
+
+        <div
+          class="stock"
+          onclick="openStock('${stock.symbol}')"
+        >
+
+          <div class="stock-left">
+
+            <div class="stock-symbol">
+              ${stock.symbol}
+            </div>
+
+            <div class="stock-name">
+              ${stock.name}
+            </div>
+
+          </div>
+
+          <div>
+            ${stock.market}
+          </div>
+
+        </div>
+
+      `).join("") +
+
+      `</div>`;
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+function focusSearch(){
+
+  document.getElementById(
+    "searchInput"
+  ).focus();
+
+}
+
+
+/* =====================================================
+   DETAIL
+   ===================================================== */
+
+async function openStock(symbol){
+
+  currentSymbol =
+    symbol;
+
+  document.getElementById(
+    "homePage"
+  ).classList.add(
+    "hidden"
+  );
+
+  document.getElementById(
+    "detailPage"
+  ).classList.remove(
+    "hidden"
+  );
+
+  const box =
+    document.getElementById(
+      "detailContent"
+    );
+
+  box.innerHTML = `
+    <div class="loading">
+      正在取得 ${symbol} 資料...
+    </div>
+  `;
+
+  try{
+
+    const data =
       await api(
         "/api/stock/" +
         encodeURIComponent(symbol)
       );
 
+    renderDetail(data);
 
-    renderDetail(d);
+  }catch(error){
 
-  }catch(e){
+    console.error(error);
 
-    box.innerHTML =
-      `<div class="notice">
-        資料取得失敗，請稍後再試。
-      </div>`;
+    box.innerHTML = `
 
-  }
-}
+      <div class="analysis">
 
+        <div class="analysis-row">
 
-/* =========================
-   DETAIL
-========================= */
+          <span>
+            資料取得失敗
+          </span>
 
-function renderDetail(d){
-
-  const q =
-    d.quote || {};
-
-  const ind =
-    d.indicators || {};
-
-  const ai =
-    d.ai || {};
-
-  const sr =
-    ind.supportResistance || {};
-
-
-  const s =
-    stocks.find(
-      x =>
-        x.symbol ===
-        d.symbol
-    );
-
-
-  const name =
-    s
-      ? s.name
-      : d.symbol;
-
-
-  const watched =
-    watchlist.includes(
-      d.symbol
-    );
-
-
-  document
-    .getElementById(
-      "detail"
-    )
-    .innerHTML = `
-
-      <div class="detail">
-
-        <div class="detail-name">
-          ${name}
-        </div>
-
-        <div class="detail-symbol">
-          ${d.symbol}
-        </div>
-
-        <div class="detail-price">
-          ${num(q.price)}
-        </div>
-
-        <div class="
-          detail-change
-          ${color(q.changePct)}
-        ">
-          ${
-            q.changePct !== undefined
-              ? (
-                  q.changePct >= 0
-                    ? "+"
-                    : ""
-                ) +
-                num(q.changePct) +
-                "%"
-              : ""
-          }
-        </div>
-
-        <div class="action-row">
-
-          <button
-            class="action-btn"
-            onclick="toggleWatch('${d.symbol}')">
-
-            ${
-              watched
-                ? "★ 已加入自選"
-                : "☆ 加入自選"
-            }
-
-          </button>
-
-          <button
-            class="action-btn"
-            onclick="setTradeSymbol('${d.symbol}',${q.price || 0})">
-
-            ＋加入模擬交易
-
-          </button>
+          <span class="down">
+            ${error.message}
+          </span>
 
         </div>
 
-      </div>
-
-
-      <div class="section-title">
-        K 線
-      </div>
-
-
-      <div class="range-tabs">
-
-        ${rangeButton("1mo","1M")}
-
-        ${rangeButton("3mo","3M")}
-
-        ${rangeButton("6mo","6M")}
-
-        ${rangeButton("1y","1Y",true)}
-
-        ${rangeButton("2y","2Y")}
-
-        ${rangeButton("5y","5Y")}
-
-      </div>
-
-
-      <div class="chart-box">
-
-        <canvas id="priceChart"></canvas>
-
-      </div>
-
-
-      <div class="section-title">
-        技術指標
-      </div>
-
-
-      <div class="grid">
-
-        ${metric("MA5",ind.MA5)}
-
-        ${metric("MA20",ind.MA20)}
-
-        ${metric("MA60",ind.MA60)}
-
-        ${metric("EMA12",ind.EMA12)}
-
-        ${metric("EMA26",ind.EMA26)}
-
-        ${metric("RSI",ind.RSI)}
-
-        ${metric("MACD",ind.MACD?.macd)}
-
-        ${metric("成交量",ind.volume)}
-
-        ${metric("ATR",ind.ATR)}
-
-        ${metric("VWAP",ind.VWAP)}
-
-      </div>
-
-
-      <div class="section-title">
-        支撐 / 壓力
-      </div>
-
-
-      <div class="grid">
-
-        ${metric(
-          "支撐",
-          sr.support
-        )}
-
-        ${metric(
-          "壓力",
-          sr.resistance
-        )}
-
-      </div>
-
-
-      <div class="section-title">
-        Bollinger Bands
-      </div>
-
-
-      <div class="grid">
-
-        ${metric(
-          "上軌",
-          ind.Bollinger?.upper
-        )}
-
-        ${metric(
-          "中軌",
-          ind.Bollinger?.middle
-        )}
-
-        ${metric(
-          "下軌",
-          ind.Bollinger?.lower
-        )}
-
-      </div>
-
-
-      <div class="section-title">
-        🤖 IAN AI
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          技術分析
+        <div
+          style="
+            color:#7e8794;
+            margin-top:12px;
+            font-size:12px;
+          "
+        >
+          請確認 Render API 已成功部署。
         </div>
 
-        <div class="ai-score">
-          ${ai.score ?? "待資料"}/100
-        </div>
-
-        <div class="ai-tag">
-          趨勢：${ai.trend || "資料不足"}
-        </div>
-
-        <div class="ai-tag">
-          動能：${ai.momentum || "資料不足"}
-        </div>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          主要因素
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.reasons || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          觀察訊號
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.signals || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          風險提醒
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.risks || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="notice">
-        ${ai.disclaimer || ""}
       </div>
 
     `;
 
+  }
 
-  drawChart(
-    d.history || [],
-    ind
-  );
 }
 
 
-function rangeButton(
-  range,
-  text,
-  active=false
-){
+/* =====================================================
+   DETAIL RENDER
+   ===================================================== */
 
-  return `
+function renderDetail(data){
 
-    <button
-      class="${active ? "active":""}"
-      onclick="changeChartRange('${range}')">
+  const q =
+    data.quote || {};
 
-      ${text}
+  const a =
+    data.analysis || {};
 
-    </button>
+  const name =
+    q.name ||
+    currentSymbol;
 
-  `;
-}
+  const change =
+    q.changePct;
 
+  const macd =
+    a.MACD || {};
 
-async function changeChartRange(range){
+  const bb =
+    a.Bollinger || {};
 
-  const symbol =
-    document
-      .querySelector(
-        ".detail-symbol"
-      )
-      ?.textContent
-      ?.trim();
-
-
-  if(!symbol)
-    return;
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/history/" +
-        encodeURIComponent(symbol) +
-        "?range=" +
-        range +
-        "&interval=1d"
-      );
-
-
-    drawChart(
-      d.history || [],
-      d.indicators || {}
+  const box =
+    document.getElementById(
+      "detailContent"
     );
 
-  }catch(e){
+  box.innerHTML = `
 
-    console.log(e);
+    <div class="detail-head">
 
-  }
+      <div class="detail-symbol">
+        ${currentSymbol}
+        ·
+        ${q.market || ""}
+      </div>
+
+      <div class="detail-name">
+        ${name}
+      </div>
+
+      <div class="detail-price">
+        ${money(q.price)}
+      </div>
+
+      <div
+        class="detail-change ${
+          change >= 0
+            ? "up"
+            : "down"
+        }"
+      >
+        ${percent(change)}
+      </div>
+
+    </div>
+
+
+    <div class="score-box">
+
+      <div class="score-title">
+        IAN AI SCORE
+      </div>
+
+      <div class="score">
+        ${
+          a.score === null ||
+          a.score === undefined
+            ? "--"
+            : a.score
+        }
+
+        <span
+          style="
+            font-size:15px;
+            color:#707986;
+          "
+        >
+          /100
+        </span>
+
+      </div>
+
+      <div class="score-note">
+        技術指標資訊整理，不構成投資建議
+      </div>
+
+    </div>
+
+
+    <div class="section-title">
+      <h2>技術指標</h2>
+    </div>
+
+
+    <div class="tech-grid">
+
+      ${tech(
+        "MA5",
+        a.MA5
+      )}
+
+      ${tech(
+        "MA20",
+        a.MA20
+      )}
+
+      ${tech(
+        "MA60",
+        a.MA60
+      )}
+
+      ${tech(
+        "EMA12",
+        a.EMA12
+      )}
+
+      ${tech(
+        "EMA26",
+        a.EMA26
+      )}
+
+      ${tech(
+        "RSI",
+        a.RSI,
+        2
+      )}
+
+      ${tech(
+        "MACD",
+        macd.macd,
+        3
+      )}
+
+      ${tech(
+        "MACD Signal",
+        macd.signal,
+        3
+      )}
+
+      ${tech(
+        "ATR",
+        a.ATR,
+        2
+      )}
+
+      ${tech(
+        "VWAP",
+        a.VWAP,
+        2
+      )}
+
+      ${tech(
+        "支撐",
+        a.Support
+      )}
+
+      ${tech(
+        "壓力",
+        a.Resistance
+      )}
+
+      ${tech(
+        "布林上軌",
+        bb.upper
+      )}
+
+      ${tech(
+        "布林中軌",
+        bb.middle
+      )}
+
+      ${tech(
+        "布林下軌",
+        bb.lower
+      )}
+
+    </div>
+
+
+    <div class="section-title">
+      <h2>IAN AI 技術分析</h2>
+    </div>
+
+
+    <div class="analysis">
+
+      <div class="analysis-row">
+
+        <span class="analysis-label">
+          趨勢
+        </span>
+
+        <strong>
+          ${a.trend || "--"}
+        </strong>
+
+      </div>
+
+
+      <div class="analysis-row">
+
+        <span class="analysis-label">
+          動能
+        </span>
+
+        <strong>
+          ${a.momentum || "--"}
+        </strong>
+
+      </div>
+
+
+      <div class="analysis-row">
+
+        <span class="analysis-label">
+          成交量
+        </span>
+
+        <strong>
+          ${money(q.volume)}
+        </strong>
+
+      </div>
+
+
+      <div class="analysis-row">
+
+        <span class="analysis-label">
+          歷史資料
+        </span>
+
+        <strong>
+          ${a.dataPoints || 0} 筆
+        </strong>
+
+      </div>
+
+
+    </div>
+
+
+    <div class="section-title">
+      <h2>價格走勢</h2>
+    </div>
+
+
+    <div class="chart">
+
+      <canvas id="priceCanvas"></canvas>
+
+    </div>
+
+  `;
+
+  drawChart(
+    data.history || []
+  );
+
 }
 
 
-/* =========================
-   METRIC
-========================= */
+/* =====================================================
+   TECH CARD
+   ===================================================== */
 
-function metric(
+function tech(
   label,
-  value
+  value,
+  decimals=2
 ){
+
+  let text = "--";
+
+  if(
+    value !== null &&
+    value !== undefined &&
+    Number.isFinite(Number(value))
+  ){
+
+    text =
+      Number(value)
+        .toLocaleString(
+          "zh-TW",
+          {
+            maximumFractionDigits:
+              decimals
+          }
+        );
+
+  }
 
   return `
 
-    <div class="metric">
+    <div class="tech">
 
-      <div class="metric-label">
+      <div class="tech-label">
         ${label}
       </div>
 
-      <div class="metric-value">
-        ${
-          value === null ||
-          value === undefined
-            ? "待資料"
-            : num(value)
-        }
+      <div class="tech-value">
+        ${text}
       </div>
 
     </div>
 
   `;
+
 }
 
 
-/* =========================
-   K LINE
-========================= */
+/* =====================================================
+   SIMPLE CHART
+   ===================================================== */
 
-function drawChart(
-  rows,
-  indicators
-){
+function drawChart(history){
 
   const canvas =
     document.getElementById(
-      "priceChart"
+      "priceCanvas"
     );
 
-
-  if(!canvas)
-    return;
-
-
-  const box =
-    canvas.parentElement;
-
-
-  const width =
-    Math.max(
-      280,
-      box.clientWidth - 20
-    );
-
-  const height = 310;
-
-  const ratio =
-    window.devicePixelRatio || 1;
-
-
-  canvas.width =
-    width * ratio;
-
-  canvas.height =
-    height * ratio;
-
-  canvas.style.width =
-    width + "px";
-
-  canvas.style.height =
-    height + "px";
-
+  if(!canvas) return;
 
   const ctx =
-    canvas.getContext(
-      "2d"
-    );
+    canvas.getContext("2d");
 
+  const rect =
+    canvas.getBoundingClientRect();
 
-  ctx.scale(
-    ratio,
-    ratio
-  );
+  const dpr =
+    window.devicePixelRatio || 1;
 
+  canvas.width =
+    rect.width * dpr;
 
-  ctx.clearRect(
-    0,
-    0,
-    width,
-    height
-  );
+  canvas.height =
+    250 * dpr;
 
+  ctx.scale(dpr,dpr);
 
-  if(!rows.length)
-    return;
+  const width =
+    rect.width;
 
+  const height =
+    250;
 
   const data =
-    rows.slice(-100);
+    history
+      .map(x => Number(x.close))
+      .filter(Number.isFinite)
+      .slice(-100);
 
+  if(data.length < 2){
 
-  const highs =
-    data.map(
-      x=>Number(x.high)
+    ctx.fillStyle =
+      "#777f8c";
+
+    ctx.font =
+      "14px sans-serif";
+
+    ctx.fillText(
+      "歷史資料不足",
+      20,
+      40
     );
 
+    return;
 
-  const lows =
-    data.map(
-      x=>Number(x.low)
-    );
-
-
-  const max =
-    Math.max(...highs);
+  }
 
   const min =
-    Math.min(...lows);
+    Math.min(...data);
+
+  const max =
+    Math.max(...data);
 
   const range =
-    max-min || 1;
-
-
-  const padding = 25;
-
-  const chartHeight =
-    height-padding*2;
-
-
-  function y(price){
-
-    return (
-      padding +
-      (max-price) /
-      range *
-      chartHeight
-    );
-
-  }
-
-
-  ctx.strokeStyle =
-    "#252d39";
-
-  ctx.lineWidth=1;
-
-
-  for(
-    let i=0;
-    i<5;
-    i++
-  ){
-
-    const yy =
-      padding +
-      i *
-      chartHeight/4;
-
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-      0,
-      yy
-    );
-
-    ctx.lineTo(
-      width,
-      yy
-    );
-
-    ctx.stroke();
-
-  }
-
-
-  const candleWidth =
-    Math.max(
-      3,
-      width/data.length*.62
-    );
-
-
-  data.forEach(
-    (row,i)=>{
-
-      const x =
-        i *
-        width/data.length +
-        width/data.length/2;
-
-
-      const open =
-        Number(row.open);
-
-      const close =
-        Number(row.close);
-
-      const high =
-        Number(row.high);
-
-      const low =
-        Number(row.low);
-
-
-      const up =
-        close>=open;
-
-
-      ctx.strokeStyle =
-        up
-          ? "#42d392"
-          : "#ff6875";
-
-      ctx.fillStyle =
-        up
-          ? "#42d392"
-          : "#ff6875";
-
-
-      ctx.beginPath();
-
-      ctx.moveTo(
-        x,
-        y(high)
-      );
-
-      ctx.lineTo(
-        x,
-        y(low)
-      );
-
-      ctx.stroke();
-
-
-      const top =
-        y(
-          Math.max(
-            open,
-            close
-          )
-        );
-
-      const bottom =
-        y(
-          Math.min(
-            open,
-            close
-          )
-        );
-
-
-      ctx.fillRect(
-        x-candleWidth/2,
-        top,
-        candleWidth,
-        Math.max(
-          1,
-          bottom-top
-        )
-      );
-
-    }
-  );
-
-
-  drawLine(
-    ctx,
-    data,
-    20,
-    y,
-    width
-  );
-
-
-  drawLine(
-    ctx,
-    data,
-    60,
-    y,
-    width
-  );
-
-
-  if(
-    indicators
-      .supportResistance
-      ?.support
-  ){
-
-    drawHorizontal(
-      ctx,
-      y(
-        indicators
-          .supportResistance
-          .support
-      ),
-      width
-    );
-
-  }
-
-
-  if(
-    indicators
-      .supportResistance
-      ?.resistance
-  ){
-
-    drawHorizontal(
-      ctx,
-      y(
-        indicators
-          .supportResistance
-          .resistance
-      ),
-      width
-    );
-
-  }
-
-}
-
-
-function movingAverage(
-  data,
-  index,
-  period
-){
-
-  if(
-    index<period-1
-  )
-    return null;
-
-
-  let sum=0;
-
-
-  for(
-    let i=index-period+1;
-    i<=index;
-    i++
-  ){
-
-    sum +=
-      Number(
-        data[i].close
-      );
-
-  }
-
-
-  return sum/period;
-}
-
-
-function drawLine(
-  ctx,
-  data,
-  period,
-  y,
-  width
-){
-
-  ctx.strokeStyle =
-    "#d6b85a";
-
-  ctx.lineWidth=1.5;
-
-
-  let started=false;
-
-
-  data.forEach(
-    (row,i)=>{
-
-      const value =
-        movingAverage(
-          data,
-          i,
-          period
-        );
-
-
-      if(value===null)
-        return;
-
-
-      const x =
-        i *
-        width/data.length +
-        width/data.length/2;
-
-
-      const yy =
-        y(value);
-
-
-      if(!started){
-
-        ctx.beginPath();
-
-        ctx.moveTo(
-          x,
-          yy
-        );
-
-        started=true;
-
-      }else{
-
-        ctx.lineTo(
-          x,
-          yy
-        );
-
-      }
-
-    }
-  );
-
-
-  if(started)
-    ctx.stroke();
-}
-
-
-function drawHorizontal(
-  ctx,
-  y,
-  width
-){
-
-  ctx.save();
-
-  ctx.setLineDash(
-    [6,6]
-  );
-
-  ctx.strokeStyle =
-    "#778190";
+    max - min || 1;
 
   ctx.beginPath();
 
-  ctx.moveTo(
-    0,
-    y
-  );
+  data.forEach(
+    (value,index) => {
 
-  ctx.lineTo(
-    width,
-    y
-  );
+      const x =
+        10 +
+        index *
+        ((width - 20) /
+        (data.length - 1));
 
-  ctx.stroke();
+      const y =
+        height -
+        15 -
+        ((value-min) /
+        range) *
+        (height-30);
 
-  ctx.restore();
-}
+      if(index === 0){
 
+        ctx.moveTo(x,y);
 
-/* =========================
-   WATCHLIST
-========================= */
+      }else{
 
-function toggleWatch(symbol){
-
-  const index =
-    watchlist.indexOf(
-      symbol
-    );
-
-
-  if(index >= 0){
-
-    watchlist.splice(
-      index,
-      1
-    );
-
-  }else{
-
-    watchlist.push(
-      symbol
-    );
-
-  }
-
-
-  save();
-
-  renderWatch();
-}
-
-
-async function renderWatch(){
-
-  const box =
-    document.getElementById(
-      "watchList"
-    );
-
-
-  if(!watchlist.length){
-
-    box.innerHTML =
-      `<div class="empty">
-        還沒有自選股
-      </div>`;
-
-    return;
-  }
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/quotes?symbols=" +
-        watchlist.join(",")
-      );
-
-
-    box.innerHTML="";
-
-
-    watchlist.forEach(
-      symbol=>{
-
-        const q =
-          (d.results || [])
-            .find(
-              x =>
-                x.symbol ===
-                symbol
-            );
-
-
-        const s =
-          stocks.find(
-            x =>
-              x.symbol ===
-              symbol
-          );
-
-
-        const el =
-          document.createElement(
-            "div"
-          );
-
-
-        el.className =
-          "stock-card";
-
-
-        el.innerHTML = `
-
-          <div class="stock-top">
-
-            <div>
-
-              <div class="stock-name">
-                ${
-                  s
-                    ? s.name
-                    : symbol
-                }
-              </div>
-
-              <div class="stock-symbol">
-                ${symbol}
-              </div>
-
-            </div>
-
-            <div>
-
-              <div class="stock-price">
-                ${
-                  q
-                    ? num(q.price)
-                    : "待資料"
-                }
-              </div>
-
-              <div class="${
-                q
-                  ? color(q.changePct)
-                  : "gray"
-              }">
-
-                ${
-                  q
-                    ? (
-                        q.changePct>=0
-                          ? "+"
-                          : ""
-                      ) +
-                      num(q.changePct) +
-                      "%"
-                    : "待資料"
-                }
-
-              </div>
-
-            </div>
-
-          </div>
-
-        `;
-
-
-        el.onclick =
-          () =>
-            openStock(
-              symbol
-            );
-
-
-        box.appendChild(
-          el
-        );
+        ctx.lineTo(x,y);
 
       }
-    );
-
-  }catch{
-
-    box.innerHTML =
-      `<div class="empty">
-        行情取得失敗
-      </div>`;
-
-  }
-}
-
-
-/* =========================
-   PORTFOLIO
-========================= */
-
-function setTradeSymbol(
-  symbol,
-  price
-){
-
-  showPage(
-    "portfolio"
-  );
-
-
-  document
-    .getElementById(
-      "tradeSymbol"
-    )
-    .value =
-    symbol;
-
-
-  if(price){
-
-    document
-      .getElementById(
-        "tradePrice"
-      )
-      .value =
-      price;
-
-  }
-
-}
-
-
-async function buyStock(){
-
-  const symbol =
-    document
-      .getElementById(
-        "tradeSymbol"
-      )
-      .value
-      .trim()
-      .toUpperCase();
-
-
-  const shares =
-    Number(
-      document
-        .getElementById(
-          "tradeShares"
-        )
-        .value
-    );
-
-
-  const price =
-    Number(
-      document
-        .getElementById(
-          "tradePrice"
-        )
-        .value
-    );
-
-
-  if(
-    !symbol ||
-    shares<=0 ||
-    price<=0
-  ){
-
-    alert(
-      "請輸入完整資料"
-    );
-
-    return;
-  }
-
-
-  const existing =
-    positions.find(
-      x =>
-        x.symbol ===
-        symbol
-    );
-
-
-  if(existing){
-
-    const oldCost =
-      existing.shares *
-      existing.avgPrice;
-
-
-    existing.shares +=
-      shares;
-
-
-    existing.avgPrice =
-      (
-        oldCost +
-        shares*price
-      ) /
-      existing.shares;
-
-  }else{
-
-    positions.push({
-
-      symbol,
-
-      shares,
-
-      avgPrice:
-        price
-
-    });
-
-  }
-
-
-  save();
-
-  renderPortfolio();
-
-
-  document
-    .getElementById(
-      "tradeSymbol"
-    )
-    .value="";
-
-  document
-    .getElementById(
-      "tradeShares"
-    )
-    .value="";
-
-  document
-    .getElementById(
-      "tradePrice"
-    )
-    .value="";
-
-}
-
-
-async function renderPortfolio(){
-
-  const box =
-    document.getElementById(
-      "positions"
-    );
-
-
-  if(!positions.length){
-
-    box.innerHTML =
-      `<div class="empty">
-        目前沒有模擬持倉
-      </div>`;
-
-    return;
-  }
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/quotes?symbols=" +
-        positions
-          .map(
-            p=>p.symbol
-          )
-          .join(",")
-      );
-
-
-    box.innerHTML="";
-
-
-    let value=0;
-
-    let cost=0;
-
-
-    positions.forEach(
-      p=>{
-
-        const q =
-          (d.results || [])
-            .find(
-              x =>
-                x.symbol ===
-                p.symbol
-            );
-
-
-        const current =
-          q
-            ? q.price
-            : p.avgPrice;
-
-
-        const currentValue =
-          current *
-          p.shares;
-
-
-        const originalCost =
-          p.avgPrice *
-          p.shares;
-
-
-        value +=
-          currentValue;
-
-        cost +=
-          originalCost;
-
-
-        const pnl =
-          currentValue -
-          originalCost;
-
-
-        const el =
-          document.createElement(
-            "div"
-          );
-
-
-        el.className =
-          "stock-card";
-
-
-        el.innerHTML = `
-
-          <div class="stock-top">
-
-            <div>
-
-              <div class="stock-name">
-                ${p.symbol}
-              </div>
-
-              <div class="stock-symbol">
-                ${num(p.shares)} 股
-              </div>
-
-            </div>
-
-            <div>
-
-              <div class="stock-price">
-                ${num(currentValue)}
-              </div>
-
-              <div class="${color(pnl)}">
-                ${
-                  pnl>=0
-                    ? "+"
-                    : ""
-                }${num(pnl)}
-              </div>
-
-            </div>
-
-          </div>
-
-        `;
-
-
-        box.appendChild(
-          el
-        );
-
-      }
-    );
-
-
-    const profit =
-      value-cost;
-
-
-    document
-      .getElementById(
-        "positionValue"
-      )
-      .textContent =
-      money(value);
-
-
-    document
-      .getElementById(
-        "pnl"
-      )
-      .textContent =
-      money(profit);
-
-
-    document
-      .getElementById(
-        "pnl"
-      )
-      .className =
-      "big " +
-      color(profit);
-
-
-    document
-      .getElementById(
-        "roi"
-      )
-      .textContent =
-      cost
-        ? (
-            profit/cost*100
-          ).toFixed(2)+"%"
-        : "0%";
-
-
-  }catch{
-
-    box.innerHTML =
-      `<div class="empty">
-        行情取得失敗
-      </div>`;
-
-  }
-}
-
-
-/* =========================
-   ALERTS
-========================= */
-
-function createAlert(){
-
-  const symbol =
-    document
-      .getElementById(
-        "alertSymbol"
-      )
-      .value
-      .trim()
-      .toUpperCase();
-
-
-  const price =
-    Number(
-      document
-        .getElementById(
-          "alertPrice"
-        )
-        .value
-    );
-
-
-  const type =
-    document
-      .getElementById(
-        "alertType"
-      )
-      .value;
-
-
-  if(
-    !symbol ||
-    !price
-  ){
-
-    alert(
-      "請輸入完整警報資料"
-    );
-
-    return;
-  }
-
-
-  alerts.push({
-
-    id:Date.now(),
-
-    symbol,
-
-    price,
-
-    type,
-
-    active:true
-
-  });
-
-
-  save();
-
-  renderAlerts();
-
-
-  document
-    .getElementById(
-      "alertSymbol"
-    )
-    .value="";
-
-  document
-    .getElementById(
-      "alertPrice"
-    )
-    .value="";
-
-}
-
-
-function deleteAlert(id){
-
-  alerts =
-    alerts.filter(
-      x =>
-        x.id !== id
-    );
-
-
-  save();
-
-  renderAlerts();
-}
-
-
-function renderAlerts(){
-
-  const box =
-    document.getElementById(
-      "alertList"
-    );
-
-
-  if(!alerts.length){
-
-    box.innerHTML =
-      `<div class="empty">
-        目前沒有警報
-      </div>`;
-
-    return;
-  }
-
-
-  box.innerHTML="";
-
-
-  alerts.forEach(
-    a=>{
-
-      const el =
-        document.createElement(
-          "div"
-        );
-
-
-      el.className =
-        "alert-card";
-
-
-      el.innerHTML = `
-
-        <div class="stock-top">
-
-          <div>
-
-            <div class="stock-name">
-              ${a.symbol}
-            </div>
-
-            <div class="stock-symbol">
-
-              ${
-                a.type === "above"
-                  ? "高於"
-                  : "低於"
-              }
-
-              ${num(a.price)}
-
-            </div>
-
-          </div>
-
-          <button
-            class="action-btn"
-            onclick="deleteAlert(${a.id})">
-            刪除
-          </button>
-
-        </div>
-
-      `;
-
-
-      box.appendChild(
-        el
-      );
 
     }
   );
 
-}
+  ctx.strokeStyle =
+    "#37d67a";
+
+  ctx.lineWidth =
+    2;
+
+  ctx.stroke();
 
 
-/* =========================
-   AI
-========================= */
+  ctx.fillStyle =
+    "#777f8c";
 
-async function runAI(){
+  ctx.font =
+    "11px sans-serif";
 
-  const symbol =
-    document
-      .getElementById(
-        "aiSymbol"
-      )
-      .value
-      .trim()
-      .toUpperCase();
+  ctx.fillText(
+    money(max),
+    10,
+    15
+  );
 
-
-  if(!symbol){
-
-    alert(
-      "請輸入股票代號"
-    );
-
-    return;
-  }
-
-
-  const box =
-    document.getElementById(
-      "aiResult"
-    );
-
-
-  box.innerHTML =
-    `<div class="empty">
-      IAN AI 分析中...
-    </div>`;
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/analysis/" +
-        encodeURIComponent(symbol)
-      );
-
-
-    const ai =
-      d.ai || {};
-
-
-    box.innerHTML = `
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          ${symbol}
-        </div>
-
-        <div class="ai-score">
-          ${ai.score ?? "待資料"}/100
-        </div>
-
-        <div class="ai-tag">
-          趨勢：${ai.trend || "資料不足"}
-        </div>
-
-        <div class="ai-tag">
-          動能：${ai.momentum || "資料不足"}
-        </div>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          主要因素
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.reasons || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          觀察訊號
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.signals || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="ai-box">
-
-        <div class="ai-title">
-          風險
-        </div>
-
-        <ul class="list">
-
-          ${
-            (ai.risks || [])
-              .map(
-                x =>
-                  `<li>${x}</li>`
-              )
-              .join("")
-          }
-
-        </ul>
-
-      </div>
-
-
-      <div class="notice">
-        ${ai.disclaimer || ""}
-      </div>
-
-    `;
-
-  }catch{
-
-    box.innerHTML =
-      `<div class="notice">
-        AI 分析取得失敗
-      </div>`;
-
-  }
+  ctx.fillText(
+    money(min),
+    10,
+    height - 3
+  );
 
 }
 
 
-/* =========================
-   ALERT CHECK
-========================= */
+/* =====================================================
+   HOME
+   ===================================================== */
 
-async function checkAlerts(){
+function showHome(){
 
-  if(!alerts.length)
-    return;
+  document.getElementById(
+    "detailPage"
+  ).classList.add(
+    "hidden"
+  );
 
+  document.getElementById(
+    "homePage"
+  ).classList.remove(
+    "hidden"
+  );
 
-  const symbols =
-    [
-      ...new Set(
-        alerts.map(
-          x=>x.symbol
-        )
-      )
-    ];
-
-
-  try{
-
-    const d =
-      await api(
-        "/api/quotes?symbols=" +
-        symbols.join(",")
-      );
+}
 
 
-    alerts.forEach(
-      a=>{
+/* =====================================================
+   SEARCH ENTER
+   ===================================================== */
 
-        if(!a.active)
-          return;
+document
+  .getElementById(
+    "searchInput"
+  )
+  .addEventListener(
+    "keydown",
+    function(e){
 
+      if(e.key === "Enter"){
 
-        const q =
-          (d.results || [])
-            .find(
-              x =>
-                x.symbol ===
-                a.symbol
-            );
-
-
-        if(!q)
-          return;
-
-
-        const hit =
-          a.type === "above"
-            ? q.price >= a.price
-            : q.price <= a.price;
-
-
-        if(hit){
-
-          alert(
-            `IAN STOCK 警報：${a.symbol} 已達 ${num(q.price)}`
-          );
-
-          a.active=false;
-
-        }
+        searchStock();
 
       }
-    );
 
-
-    save();
-
-  }catch{}
-
-}
-
-
-/* =========================
-   INIT
-========================= */
-
-async function init(){
-
-  loadStatus();
-
-  loadMarket();
-
-  loadHot();
-
-  setInterval(
-    loadStatus,
-    60000
+    }
   );
 
-  setInterval(
-    checkAlerts,
-    60000
-  );
 
-}
+/* =====================================================
+   START
+   ===================================================== */
 
-init();
+loadQuotes();
+
+
+/*
+   每 30 秒更新一次首頁報價
+*/
+
+setInterval(
+  loadQuotes,
+  30000
+);
 
 </script>
 
