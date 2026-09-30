@@ -7,24 +7,24 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const VERSION = "5.0.0";
 
-const SERVER_NAME = "IAN STOCK API";
-const VERSION = "4.0.0";
-
-// ================================
-// CACHE
-// ================================
+const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || "";
 
 const CACHE_TIME = 5 * 60 * 1000;
-const quoteCache = {};
-const historyCache = {};
-const analysisCache = {};
+const HISTORY_CACHE_TIME = 30 * 60 * 1000;
+
+const cache = new Map();
+const historyCache = new Map();
+
+const SERVER_NAME = "IAN STOCK API";
+
+/* =========================================================
+   基本工具
+========================================================= */
 
 function cleanSymbol(symbol) {
-  return String(symbol || "")
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "");
+  return String(symbol || "").trim().toUpperCase();
 }
 
 function isTW(symbol) {
@@ -32,329 +32,621 @@ function isTW(symbol) {
 }
 
 function yahooSymbol(symbol) {
-  const s = cleanSymbol(symbol);
+  symbol = cleanSymbol(symbol);
+  if (isTW(symbol)) return symbol + ".TW";
+  return symbol;
+}
 
-  if (s.includes(".")) return s;
+function now() {
+  return Date.now();
+}
 
-  if (/^\d{4,6}$/.test(s)) {
-    return s + ".TW";
+function getCache(key) {
+  const item = cache.get(key);
+
+  if (!item) return null;
+
+  if (now() - item.time > CACHE_TIME) {
+    return null;
   }
 
-  return s;
-}
-
-function cacheValid(item) {
-  if (!item) return false;
-  return Date.now() - item.time < CACHE_TIME;
-}
-
-function getQuoteCache(symbol) {
-  const item = quoteCache[symbol];
-  if (!cacheValid(item)) return null;
-
   return {
     ...item.data,
     cached: true,
-    cacheAgeSeconds: Math.floor((Date.now() - item.time) / 1000)
+    cacheAgeSeconds: Math.floor((now() - item.time) / 1000)
   };
 }
 
-function saveQuoteCache(symbol, data) {
-  quoteCache[symbol] = {
-    time: Date.now(),
+function setCache(key, data) {
+  cache.set(key, {
+    time: now(),
     data
-  };
+  });
 }
 
-function getHistoryCache(symbol, range) {
-  const key = symbol + ":" + range;
-  const item = historyCache[key];
+function getHistoryCache(key) {
+  const item = historyCache.get(key);
 
-  if (!cacheValid(item)) return null;
+  if (!item) return null;
+
+  if (now() - item.time > HISTORY_CACHE_TIME) {
+    return null;
+  }
 
   return {
     ...item.data,
-    cached: true,
-    cacheAgeSeconds: Math.floor((Date.now() - item.time) / 1000)
+    cached: true
   };
 }
 
-function saveHistoryCache(symbol, range, data) {
-  const key = symbol + ":" + range;
-
-  historyCache[key] = {
-    time: Date.now(),
+function setHistoryCache(key, data) {
+  historyCache.set(key, {
+    time: now(),
     data
-  };
+  });
 }
 
-// ================================
-// HTTP JSON
-// ================================
+function number(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
 
-async function getJSON(url) {
+/* =========================================================
+   HTTP JSON
+========================================================= */
+
+async function fetchJSON(url, options = {}) {
   const response = await fetch(url, {
+    ...options,
     headers: {
-      "User-Agent": "IAN-STOCK/4.0"
+      "User-Agent":
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15",
+      "Accept": "application/json,text/plain,*/*",
+      ...(options.headers || {})
     }
   });
 
-  if (!response.ok) {
-    throw new Error("HTTP " + response.status);
+  const text = await response.text();
+
+  let data = null;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
   }
 
-  return await response.json();
+  if (!response.ok) {
+    const error = new Error(
+      "HTTP " + response.status
+    );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
+  }
+
+  return data;
 }
 
-// ================================
-// YAHOO FINANCE QUOTE
-// ================================
+/* =========================================================
+   Yahoo Finance
+========================================================= */
 
-async function fetchYahooQuote(symbol) {
-  const clean = cleanSymbol(symbol);
+async function yahooQuote(symbol) {
+  symbol = cleanSymbol(symbol);
 
-  if (!clean) {
-    return {
-      ok: false,
-      error: "Stock symbol is required"
-    };
-  }
-
-  const cached = getQuoteCache(clean);
-
-  if (cached) {
-    return cached;
-  }
-
-  const ySymbol = yahooSymbol(clean);
+  const ySymbol = yahooSymbol(symbol);
 
   const url =
     "https://query1.finance.yahoo.com/v8/finance/chart/" +
     encodeURIComponent(ySymbol) +
-    "?range=5d&interval=1d&events=history";
+    "?range=5d&interval=1d&includePrePost=false";
 
-  try {
-    const data = await getJSON(url);
+  const data = await fetchJSON(url);
 
-    const result =
-      data &&
-      data.chart &&
-      data.chart.result &&
-      data.chart.result[0];
+  const result =
+    data &&
+    data.chart &&
+    data.chart.result &&
+    data.chart.result[0];
 
-    if (!result) {
-      return {
-        ok: false,
-        symbol: clean,
-        error: "Yahoo Finance returned no data"
-      };
-    }
+  if (!result) {
+    throw new Error("Yahoo Finance 沒有回傳資料");
+  }
 
-    const meta = result.meta || {};
+  const meta = result.meta || {};
 
-    const price =
-      Number(
-        meta.regularMarketPrice ??
-        meta.previousClose ??
-        0
-      );
+  const price =
+    number(meta.regularMarketPrice) ||
+    number(meta.previousClose);
 
-    const previousClose =
-      Number(
-        meta.previousClose ??
-        meta.chartPreviousClose ??
-        0
-      );
+  if (price === null) {
+    throw new Error("Yahoo Finance 沒有價格");
+  }
 
-    const change =
-      price && previousClose
-        ? price - previousClose
-        : 0;
+  const previous =
+    number(meta.previousClose) ||
+    price;
 
-    const changePct =
-      previousClose
-        ? (change / previousClose) * 100
-        : 0;
+  const change = price - previous;
 
-    const quote = {
-      ok: true,
-      symbol: clean,
-      yahooSymbol: ySymbol,
-      market: isTW(clean) ? "TW" : "US",
-      price,
-      previousClose,
-      change,
-      changePct,
-      currency: meta.currency || (isTW(clean) ? "TWD" : "USD"),
-      exchange: meta.exchangeName || null,
-      exchangeTimezone: meta.exchangeTimezoneName || null,
-      marketState: meta.marketState || null,
-      latestTradingDay:
-        meta.regularMarketTime
-          ? new Date(meta.regularMarketTime * 1000)
-              .toISOString()
-              .slice(0, 10)
-          : null
-    };
+  const changePct =
+    previous !== 0
+      ? (change / previous) * 100
+      : 0;
 
-    saveQuoteCache(clean, quote);
+  return {
+    ok: true,
+    symbol,
+    market: isTW(symbol) ? "TW" : "US",
+    price,
+    previousClose: previous,
+    change,
+    changePct,
+    currency: meta.currency || (isTW(symbol) ? "TWD" : "USD"),
+    exchange: meta.exchangeName || "",
+    source: "Yahoo Finance",
+    latestTradingDay:
+      meta.regularMarketTime
+        ? new Date(meta.regularMarketTime * 1000)
+            .toISOString()
+            .slice(0, 10)
+        : null
+  };
+}
 
-    return {
-      ...quote,
-      cached: false
-    };
-  } catch (error) {
+/* =========================================================
+   Alpha Vantage 備援
+========================================================= */
+
+async function alphaQuote(symbol) {
+  symbol = cleanSymbol(symbol);
+
+  if (!ALPHA_VANTAGE_KEY) {
+    throw new Error("ALPHA_VANTAGE_KEY 未設定");
+  }
+
+  if (isTW(symbol)) {
+    throw new Error("Alpha Vantage 備援目前只處理美股");
+  }
+
+  const url =
+    "https://www.alphavantage.co/query" +
+    "?function=GLOBAL_QUOTE" +
+    "&symbol=" +
+    encodeURIComponent(symbol) +
+    "&apikey=" +
+    encodeURIComponent(ALPHA_VANTAGE_KEY);
+
+  const data = await fetchJSON(url);
+
+  if (data.Information) {
+    throw new Error(data.Information);
+  }
+
+  if (data["Error Message"]) {
+    throw new Error(data["Error Message"]);
+  }
+
+  const quote = data["Global Quote"];
+
+  if (!quote || !quote["05. price"]) {
+    throw new Error("Alpha Vantage 沒有價格資料");
+  }
+
+  return {
+    ok: true,
+    symbol,
+    market: "US",
+    price: number(quote["05. price"]),
+    change: number(quote["09. change"]) || 0,
+    changePct:
+      number(
+        String(quote["10. change percent"] || "")
+          .replace("%", "")
+      ) || 0,
+    volume: number(quote["06. volume"]) || 0,
+    previousClose:
+      number(quote["08. previous close"]) || null,
+    currency: "USD",
+    source: "Alpha Vantage",
+    latestTradingDay:
+      quote["07. latest trading day"] || null
+  };
+}
+
+/* =========================================================
+   台股 TWSE 備援
+========================================================= */
+
+async function twseQuote(symbol) {
+  symbol = cleanSymbol(symbol);
+
+  if (!isTW(symbol)) {
+    throw new Error("不是台股代號");
+  }
+
+  const url =
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL";
+
+  const data = await fetchJSON(url);
+
+  if (!Array.isArray(data)) {
+    throw new Error("TWSE 沒有回傳資料");
+  }
+
+  const row = data.find(
+    item =>
+      String(item.Code || item["證券代號"] || "").trim() === symbol
+  );
+
+  if (!row) {
+    throw new Error("TWSE 找不到股票 " + symbol);
+  }
+
+  const price =
+    number(row.ClosingPrice) ||
+    number(row["收盤價"]);
+
+  if (price === null) {
+    throw new Error("TWSE 沒有收盤價");
+  }
+
+  const change =
+    number(row.Change) ||
+    number(row["漲跌價差"]) ||
+    0;
+
+  return {
+    ok: true,
+    symbol,
+    market: "TW",
+    price,
+    change,
+    changePct: 0,
+    volume:
+      number(row.TradingVolume) ||
+      number(row["成交股數"]) ||
+      0,
+    currency: "TWD",
+    source: "TWSE",
+    latestTradingDay: new Date()
+      .toISOString()
+      .slice(0, 10)
+  };
+}
+
+/* =========================================================
+   統一報價
+========================================================= */
+
+async function getQuote(symbol) {
+  symbol = cleanSymbol(symbol);
+
+  if (!symbol) {
     return {
       ok: false,
-      symbol: clean,
-      error: "Yahoo Finance request failed: " + error.message
+      error: "股票代號不能為空"
     };
   }
-}
 
-// ================================
-// HISTORY
-// ================================
-
-function rangeToPeriod(range) {
-  switch (range) {
-    case "1M":
-      return { range: "1mo", interval: "1d" };
-
-    case "3M":
-      return { range: "3mo", interval: "1d" };
-
-    case "6M":
-      return { range: "6mo", interval: "1d" };
-
-    case "1Y":
-      return { range: "1y", interval: "1d" };
-
-    case "2Y":
-      return { range: "2y", interval: "1d" };
-
-    case "5Y":
-      return { range: "5y", interval: "1wk" };
-
-    default:
-      return { range: "1y", interval: "1d" };
-  }
-}
-
-async function fetchYahooHistory(symbol, selectedRange = "1Y") {
-  const clean = cleanSymbol(symbol);
-  const range = String(selectedRange || "1Y").toUpperCase();
-
-  const cached = getHistoryCache(clean, range);
+  const cached = getCache("quote:" + symbol);
 
   if (cached) {
     return cached;
   }
 
-  const config = rangeToPeriod(range);
-  const ySymbol = yahooSymbol(clean);
+  const errors = [];
+
+  /* 台股 */
+  if (isTW(symbol)) {
+    try {
+      const result = await twseQuote(symbol);
+
+      setCache("quote:" + symbol, result);
+
+      return {
+        ...result,
+        cached: false
+      };
+    } catch (error) {
+      errors.push("TWSE: " + error.message);
+    }
+
+    /* Yahoo 台股備援 */
+    try {
+      const result = await yahooQuote(symbol);
+
+      setCache("quote:" + symbol, result);
+
+      return {
+        ...result,
+        cached: false
+      };
+    } catch (error) {
+      errors.push("Yahoo: " + error.message);
+    }
+  }
+
+  /* 美股 */
+  else {
+    try {
+      const result = await yahooQuote(symbol);
+
+      setCache("quote:" + symbol, result);
+
+      return {
+        ...result,
+        cached: false
+      };
+    } catch (error) {
+      errors.push("Yahoo: " + error.message);
+    }
+
+    /* Alpha Vantage 備援 */
+    try {
+      const result = await alphaQuote(symbol);
+
+      setCache("quote:" + symbol, result);
+
+      return {
+        ...result,
+        cached: false
+      };
+    } catch (error) {
+      errors.push("Alpha Vantage: " + error.message);
+    }
+  }
+
+  return {
+    ok: false,
+    symbol,
+    error: "所有行情來源目前都無法取得資料",
+    details: errors
+  };
+}
+
+/* =========================================================
+   Yahoo 歷史 K 線
+========================================================= */
+
+async function yahooHistory(symbol, range = "1y") {
+  symbol = cleanSymbol(symbol);
+
+  const ySymbol = yahooSymbol(symbol);
 
   const url =
     "https://query1.finance.yahoo.com/v8/finance/chart/" +
     encodeURIComponent(ySymbol) +
     "?range=" +
-    encodeURIComponent(config.range) +
-    "&interval=" +
-    encodeURIComponent(config.interval) +
-    "&events=history";
+    encodeURIComponent(range) +
+    "&interval=1d&includePrePost=false";
+
+  const data = await fetchJSON(url);
+
+  const result =
+    data &&
+    data.chart &&
+    data.chart.result &&
+    data.chart.result[0];
+
+  if (!result) {
+    throw new Error("Yahoo 歷史資料不存在");
+  }
+
+  const timestamps = result.timestamp || [];
+
+  const quote =
+    result.indicators &&
+    result.indicators.quote &&
+    result.indicators.quote[0];
+
+  if (!quote) {
+    throw new Error("Yahoo K 線資料不存在");
+  }
+
+  const rows = [];
+
+  for (let i = 0; i < timestamps.length; i++) {
+    const close = number(
+      quote.close && quote.close[i]
+    );
+
+    const open = number(
+      quote.open && quote.open[i]
+    );
+
+    const high = number(
+      quote.high && quote.high[i]
+    );
+
+    const low = number(
+      quote.low && quote.low[i]
+    );
+
+    const volume = number(
+      quote.volume && quote.volume[i]
+    );
+
+    if (close === null) continue;
+
+    rows.push({
+      time: new Date(
+        timestamps[i] * 1000
+      ).toISOString().slice(0, 10),
+      open,
+      high,
+      low,
+      close,
+      volume: volume || 0
+    });
+  }
+
+  return {
+    ok: true,
+    symbol,
+    market: isTW(symbol) ? "TW" : "US",
+    source: "Yahoo Finance",
+    range,
+    data: rows
+  };
+}
+
+/* =========================================================
+   Stooq 美股歷史備援
+========================================================= */
+
+async function stooqHistory(symbol) {
+  symbol = cleanSymbol(symbol);
+
+  if (isTW(symbol)) {
+    throw new Error("Stooq 備援不處理台股");
+  }
+
+  const url =
+    "https://stooq.com/q/d/l/?s=" +
+    encodeURIComponent(symbol.toLowerCase()) +
+    "&d1=20200101&d2=20991231&i=d";
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "IAN-STOCK/5.0"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      "Stooq HTTP " + response.status
+    );
+  }
+
+  const text = await response.text();
+
+  const lines = text.trim().split("\n");
+
+  if (lines.length < 2) {
+    throw new Error("Stooq 沒有歷史資料");
+  }
+
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(",");
+
+    if (parts.length < 6) continue;
+
+    const close = number(parts[4]);
+
+    if (close === null) continue;
+
+    rows.push({
+      time: parts[0],
+      open: number(parts[1]),
+      high: number(parts[2]),
+      low: number(parts[3]),
+      close,
+      volume: number(parts[5]) || 0
+    });
+  }
+
+  if (!rows.length) {
+    throw new Error("Stooq 沒有有效 K 線");
+  }
+
+  return {
+    ok: true,
+    symbol,
+    market: "US",
+    source: "Stooq",
+    range: "max",
+    data: rows
+  };
+}
+
+/* =========================================================
+   統一歷史資料
+========================================================= */
+
+async function getHistory(symbol, range = "1y") {
+  symbol = cleanSymbol(symbol);
+
+  const key = "history:" + symbol + ":" + range;
+
+  const cached = getHistoryCache(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const errors = [];
 
   try {
-    const data = await getJSON(url);
+    const result = await yahooHistory(
+      symbol,
+      range
+    );
 
-    const result =
-      data &&
-      data.chart &&
-      data.chart.result &&
-      data.chart.result[0];
-
-    if (!result) {
-      return {
-        ok: false,
-        symbol: clean,
-        error: "No historical data"
-      };
-    }
-
-    const timestamps = result.timestamp || [];
-    const q =
-      result.indicators &&
-      result.indicators.quote &&
-      result.indicators.quote[0];
-
-    if (!q) {
-      return {
-        ok: false,
-        symbol: clean,
-        error: "Historical quote data unavailable"
-      };
-    }
-
-    const rows = [];
-
-    for (let i = 0; i < timestamps.length; i++) {
-      const close = q.close ? q.close[i] : null;
-
-      if (close == null) continue;
-
-      rows.push({
-        time: timestamps[i],
-        date: new Date(timestamps[i] * 1000)
-          .toISOString()
-          .slice(0, 10),
-        open: Number(q.open?.[i] ?? 0),
-        high: Number(q.high?.[i] ?? 0),
-        low: Number(q.low?.[i] ?? 0),
-        close: Number(close),
-        volume: Number(q.volume?.[i] ?? 0)
-      });
-    }
-
-    const history = {
-      ok: true,
-      symbol: clean,
-      yahooSymbol: ySymbol,
-      market: isTW(clean) ? "TW" : "US",
-      currency:
-        result.meta?.currency ||
-        (isTW(clean) ? "TWD" : "USD"),
-      range,
-      interval: config.interval,
-      count: rows.length,
-      data: rows
-    };
-
-    saveHistoryCache(clean, range, history);
+    setHistoryCache(key, result);
 
     return {
-      ...history,
+      ...result,
       cached: false
     };
   } catch (error) {
-    return {
-      ok: false,
-      symbol: clean,
-      error: "History request failed: " + error.message
-    };
+    errors.push("Yahoo: " + error.message);
   }
+
+  if (!isTW(symbol)) {
+    try {
+      const result = await stooqHistory(symbol);
+
+      setHistoryCache(key, result);
+
+      return {
+        ...result,
+        cached: false,
+        fallback: true
+      };
+    } catch (error) {
+      errors.push("Stooq: " + error.message);
+    }
+  }
+
+  return {
+    ok: false,
+    symbol,
+    error: "歷史行情暫時無法取得",
+    details: errors,
+    data: []
+  };
 }
 
-// ================================
-// INDICATORS
-// ================================
+/* =========================================================
+   技術指標
+========================================================= */
+
+function average(values) {
+  const valid = values.filter(
+    value => Number.isFinite(value)
+  );
+
+  if (!valid.length) return null;
+
+  return (
+    valid.reduce(
+      (sum, value) => sum + value,
+      0
+    ) / valid.length
+  );
+}
 
 function sma(values, period) {
   if (values.length < period) return null;
 
-  const slice = values.slice(-period);
-
-  return (
-    slice.reduce((sum, value) => sum + value, 0) /
-    period
+  return average(
+    values.slice(values.length - period)
   );
 }
 
@@ -364,12 +656,13 @@ function ema(values, period) {
   const multiplier = 2 / (period + 1);
 
   let result =
-    values
-      .slice(0, period)
-      .reduce((sum, value) => sum + value, 0) /
-    period;
+    average(values.slice(0, period));
 
-  for (let i = period; i < values.length; i++) {
+  for (
+    let i = period;
+    i < values.length;
+    i++
+  ) {
     result =
       (values[i] - result) * multiplier +
       result;
@@ -385,23 +678,32 @@ function calculateRSI(values, period = 14) {
   let losses = 0;
 
   for (let i = 1; i <= period; i++) {
-    const change = values[i] - values[i - 1];
+    const diff =
+      values[i] - values[i - 1];
 
-    if (change > 0) {
-      gains += change;
+    if (diff >= 0) {
+      gains += diff;
     } else {
-      losses += Math.abs(change);
+      losses += Math.abs(diff);
     }
   }
 
   let avgGain = gains / period;
   let avgLoss = losses / period;
 
-  for (let i = period + 1; i < values.length; i++) {
-    const change = values[i] - values[i - 1];
+  for (
+    let i = period + 1;
+    i < values.length;
+    i++
+  ) {
+    const diff =
+      values[i] - values[i - 1];
 
-    const gain = change > 0 ? change : 0;
-    const loss = change < 0 ? Math.abs(change) : 0;
+    const gain =
+      diff > 0 ? diff : 0;
+
+    const loss =
+      diff < 0 ? Math.abs(diff) : 0;
 
     avgGain =
       (avgGain * (period - 1) + gain) /
@@ -420,50 +722,167 @@ function calculateRSI(values, period = 14) {
 }
 
 function calculateMACD(values) {
-  const ema12 = ema(values, 12);
-  const ema26 = ema(values, 26);
-
-  if (ema12 == null || ema26 == null) {
-    return null;
+  if (values.length < 35) {
+    return {
+      macd: null,
+      signal: null,
+      histogram: null
+    };
   }
 
-  return ema12 - ema26;
+  const shortPeriod = 12;
+  const longPeriod = 26;
+  const signalPeriod = 9;
+
+  const macdValues = [];
+
+  for (
+    let i = longPeriod;
+    i <= values.length;
+    i++
+  ) {
+    const slice =
+      values.slice(0, i);
+
+    const fast =
+      ema(slice, shortPeriod);
+
+    const slow =
+      ema(slice, longPeriod);
+
+    if (
+      fast !== null &&
+      slow !== null
+    ) {
+      macdValues.push(
+        fast - slow
+      );
+    }
+  }
+
+  const macd =
+    macdValues[macdValues.length - 1];
+
+  const signal =
+    ema(
+      macdValues,
+      signalPeriod
+    );
+
+  return {
+    macd,
+    signal,
+    histogram:
+      macd !== null &&
+      signal !== null
+        ? macd - signal
+        : null
+  };
+}
+
+function calculateBollinger(
+  values,
+  period = 20
+) {
+  if (values.length < period) {
+    return {
+      middle: null,
+      upper: null,
+      lower: null
+    };
+  }
+
+  const data =
+    values.slice(values.length - period);
+
+  const middle =
+    average(data);
+
+  const variance =
+    average(
+      data.map(
+        value =>
+          Math.pow(
+            value - middle,
+            2
+          )
+      )
+    );
+
+  const standardDeviation =
+    Math.sqrt(variance);
+
+  return {
+    middle,
+    upper:
+      middle +
+      standardDeviation * 2,
+    lower:
+      middle -
+      standardDeviation * 2
+  };
 }
 
 function calculateATR(rows, period = 14) {
   if (rows.length <= period) return null;
 
-  const trs = [];
+  const tr = [];
 
   for (let i = 1; i < rows.length; i++) {
     const current = rows[i];
     const previous = rows[i - 1];
 
-    const tr = Math.max(
-      current.high - current.low,
-      Math.abs(current.high - previous.close),
-      Math.abs(current.low - previous.close)
-    );
+    const high = current.high;
+    const low = current.low;
+    const previousClose =
+      previous.close;
 
-    trs.push(tr);
+    if (
+      high === null ||
+      low === null ||
+      previousClose === null
+    ) {
+      continue;
+    }
+
+    tr.push(
+      Math.max(
+        high - low,
+        Math.abs(
+          high - previousClose
+        ),
+        Math.abs(
+          low - previousClose
+        )
+      )
+    );
   }
 
-  return sma(trs, period);
+  return sma(tr, period);
 }
 
 function calculateVWAP(rows) {
-  if (!rows.length) return null;
+  const recent =
+    rows.slice(
+      Math.max(0, rows.length - 30)
+    );
 
   let totalPV = 0;
   let totalVolume = 0;
 
-  for (const row of rows) {
+  for (const row of recent) {
     const typical =
-      (row.high + row.low + row.close) / 3;
+      (row.high +
+        row.low +
+        row.close) /
+      3;
 
-    const volume = row.volume || 0;
+    const volume =
+      row.volume || 0;
 
-    totalPV += typical * volume;
+    totalPV +=
+      typical * volume;
+
     totalVolume += volume;
   }
 
@@ -472,369 +891,366 @@ function calculateVWAP(rows) {
   return totalPV / totalVolume;
 }
 
-function calculateBollinger(values, period = 20) {
-  if (values.length < period) return null;
-
-  const slice = values.slice(-period);
-
-  const mean =
-    slice.reduce((a, b) => a + b, 0) /
-    period;
-
-  const variance =
-    slice.reduce(
-      (sum, value) =>
-        sum + Math.pow(value - mean, 2),
-      0
-    ) / period;
-
-  const std = Math.sqrt(variance);
-
-  return {
-    middle: mean,
-    upper: mean + std * 2,
-    lower: mean - std * 2
-  };
-}
-
-// ================================
-// SUPPORT / RESISTANCE
-// ================================
-
 function calculateSupportResistance(rows) {
-  if (!rows.length) {
-    return {
-      support: null,
-      resistance: null
-    };
-  }
+  const recent =
+    rows.slice(
+      Math.max(0, rows.length - 60)
+    );
 
-  const recent = rows.slice(-30);
+  const lows =
+    recent
+      .map(row => row.low)
+      .filter(
+        value =>
+          Number.isFinite(value)
+      );
 
-  const lows = recent
-    .map(x => x.low)
-    .filter(x => Number.isFinite(x));
-
-  const highs = recent
-    .map(x => x.high)
-    .filter(x => Number.isFinite(x));
-
-  if (!lows.length || !highs.length) {
-    return {
-      support: null,
-      resistance: null
-    };
-  }
+  const highs =
+    recent
+      .map(row => row.high)
+      .filter(
+        value =>
+          Number.isFinite(value)
+      );
 
   return {
-    support: Math.min(...lows),
-    resistance: Math.max(...highs)
+    support:
+      lows.length
+        ? Math.min(...lows)
+        : null,
+
+    resistance:
+      highs.length
+        ? Math.max(...highs)
+        : null
   };
 }
 
-// ================================
-// FULL TECHNICAL ANALYSIS
-// ================================
+/* =========================================================
+   完整技術分析
+========================================================= */
 
-async function buildAnalysis(symbol, range = "1Y") {
-  const clean = cleanSymbol(symbol);
+async function getAnalysis(symbol) {
+  symbol = cleanSymbol(symbol);
 
-  const cacheKey = clean + ":" + range;
+  const history =
+    await getHistory(
+      symbol,
+      "1y"
+    );
 
   if (
-    analysisCache[cacheKey] &&
-    cacheValid(analysisCache[cacheKey])
+    !history.ok ||
+    !history.data ||
+    !history.data.length
   ) {
     return {
-      ...analysisCache[cacheKey].data,
-      cached: true
+      ok: false,
+      symbol,
+      error: "沒有足夠歷史資料進行分析"
     };
-  }
-
-  const history = await fetchYahooHistory(clean, range);
-
-  if (!history.ok) {
-    return history;
   }
 
   const rows = history.data;
 
-  if (rows.length < 30) {
-    return {
-      ok: false,
-      symbol: clean,
-      error: "Not enough historical data for analysis"
-    };
-  }
+  const closes =
+    rows
+      .map(row => row.close)
+      .filter(
+        value =>
+          Number.isFinite(value)
+      );
 
-  const closes = rows.map(x => x.close);
+  const price =
+    closes[closes.length - 1];
 
-  const current = closes[closes.length - 1];
+  const ma5 =
+    sma(closes, 5);
 
-  const MA5 = sma(closes, 5);
-  const MA20 = sma(closes, 20);
-  const MA60 = sma(closes, 60);
+  const ma20 =
+    sma(closes, 20);
 
-  const EMA12 = ema(closes, 12);
-  const EMA26 = ema(closes, 26);
+  const ma60 =
+    sma(closes, 60);
 
-  const RSI = calculateRSI(closes, 14);
-  const MACD = calculateMACD(closes);
+  const ema12 =
+    ema(closes, 12);
 
-  const ATR = calculateATR(rows, 14);
+  const ema26 =
+    ema(closes, 26);
 
-  const VWAP = calculateVWAP(
-    rows.slice(-60)
-  );
+  const rsi =
+    calculateRSI(closes, 14);
 
-  const Bollinger =
-    calculateBollinger(closes, 20);
+  const macd =
+    calculateMACD(closes);
 
-  const SR =
-    calculateSupportResistance(rows);
-
-  const latestVolume =
-    rows[rows.length - 1].volume || 0;
-
-  const averageVolume20 =
-    sma(
-      rows
-        .slice(-20)
-        .map(x => x.volume || 0),
-      Math.min(20, rows.length)
+  const bollinger =
+    calculateBollinger(
+      closes,
+      20
     );
 
-  let trendScore = 50;
-  let momentumScore = 50;
+  const atr =
+    calculateATR(rows, 14);
+
+  const vwap =
+    calculateVWAP(rows);
+
+  const sr =
+    calculateSupportResistance(
+      rows
+    );
+
+  let trend = "中性";
+  let momentum = "中性";
+
+  if (
+    ma20 !== null &&
+    ma60 !== null
+  ) {
+    if (
+      price > ma20 &&
+      price > ma60
+    ) {
+      trend = "偏多";
+    } else if (
+      price < ma20 &&
+      price < ma60
+    ) {
+      trend = "偏空";
+    }
+  }
+
+  if (rsi !== null) {
+    if (rsi >= 70) {
+      momentum = "過熱";
+    } else if (rsi >= 55) {
+      momentum = "偏強";
+    } else if (rsi <= 30) {
+      momentum = "超賣";
+    } else if (rsi < 45) {
+      momentum = "偏弱";
+    }
+  }
+
+  let score = 50;
+
+  if (
+    ma20 !== null &&
+    price > ma20
+  ) {
+    score += 10;
+  }
+
+  if (
+    ma60 !== null &&
+    price > ma60
+  ) {
+    score += 10;
+  }
+
+  if (
+    ma20 !== null &&
+    ma60 !== null &&
+    ma20 > ma60
+  ) {
+    score += 10;
+  }
+
+  if (
+    rsi !== null &&
+    rsi >= 50 &&
+    rsi < 70
+  ) {
+    score += 5;
+  }
+
+  if (
+    macd.histogram !== null &&
+    macd.histogram > 0
+  ) {
+    score += 10;
+  }
+
+  if (
+    vwap !== null &&
+    price > vwap
+  ) {
+    score += 5;
+  }
+
+  score =
+    Math.max(
+      0,
+      Math.min(100, score)
+    );
 
   const factors = [];
-  const signals = [];
-  const risks = [];
-
-  // Trend
 
   if (
-    MA20 != null &&
-    MA60 != null &&
-    current > MA20 &&
-    current > MA60
+    ma20 !== null &&
+    price > ma20
   ) {
-    trendScore += 20;
-
     factors.push(
-      "價格位於 MA20 與 MA60 上方"
+      "價格位於 MA20 上方"
     );
   }
 
   if (
-    MA20 != null &&
-    MA60 != null &&
-    MA20 > MA60
+    ma60 !== null &&
+    price > ma60
   ) {
-    trendScore += 10;
-
     factors.push(
-      "MA20 位於 MA60 上方"
+      "價格位於 MA60 上方"
     );
   }
 
   if (
-    EMA12 != null &&
-    EMA26 != null &&
-    EMA12 > EMA26
+    macd.histogram !== null &&
+    macd.histogram > 0
   ) {
-    momentumScore += 15;
-
     factors.push(
-      "EMA12 高於 EMA26"
+      "MACD 動能位於正值區"
     );
   }
 
-  // RSI
-
-  if (RSI != null) {
-    if (RSI >= 70) {
-      momentumScore -= 10;
-
-      risks.push(
-        "RSI 進入偏高區域，需注意短線過熱"
-      );
-    } else if (RSI >= 50) {
-      momentumScore += 10;
-
-      factors.push(
-        "RSI 位於 50 以上"
-      );
-    } else if (RSI < 30) {
-      signals.push(
-        "RSI 位於偏低區域"
-      );
-    }
+  if (
+    rsi !== null
+  ) {
+    factors.push(
+      "RSI " +
+      rsi.toFixed(2)
+    );
   }
 
-  // MACD
+  const observations = [];
 
-  if (MACD != null) {
-    if (MACD > 0) {
-      momentumScore += 10;
-
-      factors.push(
-        "MACD 位於零軸上方"
+  if (
+    rsi !== null
+  ) {
+    if (rsi >= 70) {
+      observations.push(
+        "RSI 偏高，留意短線過熱"
+      );
+    } else if (rsi <= 30) {
+      observations.push(
+        "RSI 偏低，留意超賣反彈"
       );
     } else {
-      momentumScore -= 10;
-
-      risks.push(
-        "MACD 位於零軸下方"
+      observations.push(
+        "RSI 位於中性區間"
       );
     }
   }
-
-  // Volume
 
   if (
-    averageVolume20 &&
-    latestVolume > averageVolume20 * 1.5
+    macd.macd !== null &&
+    macd.macd > 0
   ) {
-    factors.push(
-      "成交量高於近期平均量"
-    );
-
-    signals.push(
-      "成交量出現明顯放大"
+    observations.push(
+      "MACD 位於零軸上方"
     );
   }
 
-  // VWAP
-
-  if (VWAP != null) {
-    if (current > VWAP) {
-      factors.push(
-        "價格位於 VWAP 上方"
-      );
-    } else {
-      risks.push(
-        "價格位於 VWAP 下方"
-      );
-    }
+  if (
+    sr.support !== null
+  ) {
+    observations.push(
+      "近期支撐約 " +
+      sr.support.toFixed(2)
+    );
   }
 
-  // Bollinger
-
-  if (Bollinger) {
-    if (current > Bollinger.upper) {
-      risks.push(
-        "價格高於布林通道上緣"
-      );
-    }
-
-    if (current < Bollinger.lower) {
-      signals.push(
-        "價格低於布林通道下緣"
-      );
-    }
+  if (
+    sr.resistance !== null
+  ) {
+    observations.push(
+      "近期壓力約 " +
+      sr.resistance.toFixed(2)
+    );
   }
 
-  trendScore = Math.max(
-    0,
-    Math.min(100, trendScore)
-  );
+  const risk = [];
 
-  momentumScore = Math.max(
-    0,
-    Math.min(100, momentumScore)
-  );
-
-  const technicalScore = Math.round(
-    trendScore * 0.55 +
-    momentumScore * 0.45
-  );
-
-  let trendText = "中性";
-
-  if (trendScore >= 70) {
-    trendText = "偏多";
-  } else if (trendScore <= 35) {
-    trendText = "偏空";
+  if (
+    rsi !== null &&
+    rsi >= 70
+  ) {
+    risk.push(
+      "短線 RSI 偏高"
+    );
   }
 
-  let momentumText = "中性";
-
-  if (momentumScore >= 70) {
-    momentumText = "偏強";
-  } else if (momentumScore <= 35) {
-    momentumText = "偏弱";
+  if (
+    atr !== null
+  ) {
+    risk.push(
+      "波動度 ATR " +
+      atr.toFixed(2)
+    );
   }
 
-  const result = {
-    ok: true,
-    symbol: clean,
-    market: isTW(clean) ? "TW" : "US",
-    range,
-
-    current,
-
-    indicators: {
-      MA5,
-      MA20,
-      MA60,
-      EMA12,
-      EMA26,
-      RSI,
-      MACD,
-      ATR,
-      VWAP,
-      Bollinger,
-      Volume: latestVolume,
-      averageVolume20
-    },
-
-    supportResistance: SR,
-
-    ai: {
-      technicalScore,
-      trend: trendText,
-      momentum: momentumText,
-
-      mainFactors:
-        factors.length
-          ? factors
-          : ["目前沒有足夠的明確訊號"],
-
-      watchSignals:
-        signals.length
-          ? signals
-          : ["持續觀察價格與成交量變化"],
-
-      risks:
-        risks.length
-          ? risks
-          : ["目前沒有明顯技術面風險訊號"],
-
-      disclaimer:
-        "IAN AI 為技術資料整理與研究輔助，不構成投資建議。"
-    },
-
-    updatedAt: new Date().toISOString()
-  };
-
-  analysisCache[cacheKey] = {
-    time: Date.now(),
-    data: result
-  };
+  if (!risk.length) {
+    risk.push(
+      "仍需觀察價格與成交量變化"
+    );
+  }
 
   return {
-    ...result,
-    cached: false
+    ok: true,
+    symbol,
+    market:
+      isTW(symbol)
+        ? "TW"
+        : "US",
+
+    price,
+
+    indicators: {
+      MA5: ma5,
+      MA20: ma20,
+      MA60: ma60,
+      EMA12: ema12,
+      EMA26: ema26,
+      RSI: rsi,
+      MACD: macd.macd,
+      MACDSignal: macd.signal,
+      MACDHistogram:
+        macd.histogram,
+      BollingerBands:
+        bollinger,
+      ATR: atr,
+      VWAP: vwap,
+      Volume:
+        rows[rows.length - 1]
+          .volume || 0
+    },
+
+    support: sr.support,
+    resistance: sr.resistance,
+
+    ai: {
+      score,
+      trend,
+      momentum,
+      factors,
+      observations,
+      risk
+    },
+
+    history: rows,
+
+    source:
+      history.source
   };
 }
 
-// ================================
-// STOCK DATABASE
-// ================================
+/* =========================================================
+   股票搜尋
+========================================================= */
 
 const STOCKS = [
-  // Taiwan
   {
     symbol: "2330",
     name: "台積電",
@@ -886,23 +1302,6 @@ const STOCKS = [
     market: "TW"
   },
   {
-    symbol: "3008",
-    name: "大立光",
-    market: "TW"
-  },
-  {
-    symbol: "3711",
-    name: "日月光投控",
-    market: "TW"
-  },
-  {
-    symbol: "6669",
-    name: "緯穎",
-    market: "TW"
-  },
-
-  // US
-  {
     symbol: "NVDA",
     name: "NVIDIA",
     market: "US"
@@ -953,64 +1352,84 @@ const STOCKS = [
     market: "US"
   },
   {
-    symbol: "NFLX",
-    name: "Netflix",
-    market: "US"
-  },
-  {
-    symbol: "ORCL",
-    name: "Oracle",
-    market: "US"
-  },
-  {
-    symbol: "COST",
-    name: "Costco",
+    symbol: "SMCI",
+    name: "Super Micro Computer",
     market: "US"
   },
   {
     symbol: "PLTR",
     name: "Palantir",
     market: "US"
+  },
+  {
+    symbol: "NFLX",
+    name: "Netflix",
+    market: "US"
+  },
+  {
+    symbol: "COIN",
+    name: "Coinbase",
+    market: "US"
+  },
+  {
+    symbol: "MSTR",
+    name: "MicroStrategy",
+    market: "US"
   }
 ];
 
-// ================================
-// DEFAULT SYMBOLS
-// ================================
+/* =========================================================
+   API：Quotes
+========================================================= */
 
-const DEFAULT_SYMBOLS = [
-  "2330",
-  "2317",
-  "2454",
-  "NVDA",
-  "AAPL",
-  "MSFT",
-  "TSLA"
-];
+app.get("/api/quote/:symbol", async (req, res) => {
+  const symbol =
+    cleanSymbol(
+      req.params.symbol
+    );
 
-// ================================
-// API: QUOTES
-// ================================
+  const result =
+    await getQuote(symbol);
+
+  if (!result.ok) {
+    return res
+      .status(502)
+      .json(result);
+  }
+
+  res.json(result);
+});
 
 app.get("/api/quotes", async (req, res) => {
-  let symbols = DEFAULT_SYMBOLS;
-
-  if (req.query.symbols) {
-    symbols = String(req.query.symbols)
-      .split(",")
-      .map(cleanSymbol)
-      .filter(Boolean)
-      .slice(0, 20);
-  }
+  let symbols =
+    req.query.symbols
+      ? String(
+          req.query.symbols
+        )
+          .split(",")
+          .map(cleanSymbol)
+          .filter(Boolean)
+          .slice(0, 20)
+      : [
+          "2330",
+          "2317",
+          "2454",
+          "NVDA",
+          "AAPL",
+          "MSFT"
+        ];
 
   const results = [];
 
   for (const symbol of symbols) {
-    const quote = await fetchYahooQuote(symbol);
+    try {
+      const result =
+        await getQuote(symbol);
 
-    if (quote.ok) {
-      results.push(quote);
-    }
+      if (result.ok) {
+        results.push(result);
+      }
+    } catch {}
   }
 
   res.json({
@@ -1020,342 +1439,390 @@ app.get("/api/quotes", async (req, res) => {
   });
 });
 
-// ================================
-// API: SINGLE QUOTE
-// ================================
+/* =========================================================
+   API：History
+========================================================= */
 
-app.get("/api/quote/:symbol", async (req, res) => {
-  const symbol = cleanSymbol(req.params.symbol);
+app.get(
+  "/api/history/:symbol",
+  async (req, res) => {
+    const symbol =
+      cleanSymbol(
+        req.params.symbol
+      );
 
-  const quote = await fetchYahooQuote(symbol);
+    const range =
+      String(
+        req.query.range || "1y"
+      );
 
-  if (!quote.ok) {
-    return res.status(502).json(quote);
+    const allowedRanges = [
+      "1mo",
+      "3mo",
+      "6mo",
+      "1y",
+      "2y",
+      "5y",
+      "10y",
+      "max"
+    ];
+
+    const safeRange =
+      allowedRanges.includes(range)
+        ? range
+        : "1y";
+
+    const result =
+      await getHistory(
+        symbol,
+        safeRange
+      );
+
+    if (!result.ok) {
+      return res
+        .status(502)
+        .json(result);
+    }
+
+    res.json(result);
   }
+);
 
-  res.json(quote);
-});
+/* =========================================================
+   API：Analysis
+========================================================= */
 
-// ================================
-// API: HISTORY
-// ================================
+app.get(
+  "/api/analysis/:symbol",
+  async (req, res) => {
+    const symbol =
+      cleanSymbol(
+        req.params.symbol
+      );
 
-app.get("/api/history/:symbol", async (req, res) => {
-  const symbol = cleanSymbol(req.params.symbol);
-  const range = String(req.query.range || "1Y");
+    const result =
+      await getAnalysis(symbol);
 
-  const history = await fetchYahooHistory(
-    symbol,
-    range
-  );
+    if (!result.ok) {
+      return res
+        .status(502)
+        .json(result);
+    }
 
-  if (!history.ok) {
-    return res.status(502).json(history);
+    res.json(result);
   }
+);
 
-  res.json(history);
-});
+/* =========================================================
+   API：Stock 完整資料
+========================================================= */
 
-// ================================
-// API: ANALYSIS
-// ================================
+app.get(
+  "/api/stock/:symbol",
+  async (req, res) => {
+    const symbol =
+      cleanSymbol(
+        req.params.symbol
+      );
 
-app.get("/api/analysis/:symbol", async (req, res) => {
-  const symbol = cleanSymbol(req.params.symbol);
-  const range = String(req.query.range || "1Y");
+    const quote =
+      await getQuote(symbol);
 
-  const analysis = await buildAnalysis(
-    symbol,
-    range
-  );
+    const analysis =
+      await getAnalysis(symbol);
 
-  if (!analysis.ok) {
-    return res.status(502).json(analysis);
+    res.json({
+      ok:
+        quote.ok ||
+        analysis.ok,
+
+      symbol,
+
+      quote,
+
+      analysis
+    });
   }
+);
 
-  res.json(analysis);
-});
+/* =========================================================
+   API：Search
+========================================================= */
 
-// ================================
-// API: STOCK
-// ================================
+app.get(
+  "/api/search",
+  async (req, res) => {
+    const keyword =
+      String(
+        req.query.q || ""
+      )
+        .trim()
+        .toUpperCase();
 
-app.get("/api/stock/:symbol", async (req, res) => {
-  const symbol = cleanSymbol(req.params.symbol);
-  const range = String(req.query.range || "1Y");
+    const market =
+      String(
+        req.query.market || ""
+      ).toUpperCase();
 
-  const [quote, analysis] =
-    await Promise.all([
-      fetchYahooQuote(symbol),
-      buildAnalysis(symbol, range)
-    ]);
+    let results =
+      STOCKS;
 
-  res.json({
-    ok: quote.ok || analysis.ok,
-    quote,
-    analysis
-  });
-});
+    if (market === "TW") {
+      results =
+        results.filter(
+          item =>
+            item.market === "TW"
+        );
+    }
 
-// ================================
-// API: SEARCH
-// ================================
+    if (market === "US") {
+      results =
+        results.filter(
+          item =>
+            item.market === "US"
+        );
+    }
 
-app.get("/api/search", async (req, res) => {
-  const keyword = String(
-    req.query.q || ""
-  )
-    .trim()
-    .toUpperCase();
+    if (keyword) {
+      results =
+        results.filter(
+          item =>
+            item.symbol
+              .toUpperCase()
+              .includes(keyword) ||
+            item.name
+              .toUpperCase()
+              .includes(keyword)
+        );
+    }
 
-  let results = STOCKS;
+    res.json({
+      ok: true,
+      count: results.length,
+      results
+    });
+  }
+);
 
-  if (keyword) {
-    results = STOCKS.filter(stock =>
-      stock.symbol
-        .toUpperCase()
-        .includes(keyword) ||
-      stock.name
-        .toUpperCase()
-        .includes(keyword)
+/* =========================================================
+   API：Market
+========================================================= */
+
+app.get(
+  "/api/market",
+  async (req, res) => {
+    const symbols = [
+      "^TWII",
+      "^IXIC",
+      "^GSPC",
+      "USDTWD=X"
+    ];
+
+    const results = [];
+
+    for (const symbol of symbols) {
+      try {
+        const result =
+          await yahooQuote(symbol);
+
+        results.push({
+          ...result,
+          displaySymbol:
+            symbol
+        });
+      } catch {
+        results.push({
+          ok: false,
+          symbol
+        });
+      }
+    }
+
+    res.json({
+      ok: true,
+      results
+    });
+  }
+);
+
+/* =========================================================
+   API：Cache
+========================================================= */
+
+app.get(
+  "/api/cache",
+  (req, res) => {
+    const quotes = {};
+
+    for (
+      const [
+        key,
+        item
+      ] of cache.entries()
+    ) {
+      quotes[key] = {
+        ageSeconds:
+          Math.floor(
+            (now() - item.time) /
+              1000
+          ),
+        valid:
+          now() - item.time <
+          CACHE_TIME
+      };
+    }
+
+    res.json({
+      ok: true,
+      cacheTimeMinutes:
+        CACHE_TIME / 60000,
+      historyCacheTimeMinutes:
+        HISTORY_CACHE_TIME / 60000,
+      quotes
+    });
+  }
+);
+
+/* =========================================================
+   API：Status
+   注意：這裡不再主動打 Yahoo
+   避免 status 本身造成 429
+========================================================= */
+
+app.get(
+  "/api/status",
+  (req, res) => {
+    res.json({
+      server: SERVER_NAME,
+      version: VERSION,
+      status: "ONLINE",
+
+      yahooFinance:
+        "AVAILABLE_WITH_CACHE_AND_FALLBACK",
+
+      alphaVantageConfigured:
+        Boolean(
+          ALPHA_VANTAGE_KEY
+        ),
+
+      cacheEntries:
+        cache.size,
+
+      historyCacheEntries:
+        historyCache.size,
+
+      indicators: [
+        "MA5",
+        "MA20",
+        "MA60",
+        "EMA12",
+        "EMA26",
+        "RSI",
+        "MACD",
+        "Bollinger Bands",
+        "ATR",
+        "VWAP",
+        "Volume",
+        "Support",
+        "Resistance"
+      ],
+
+      endpoints: [
+        "/api/quotes",
+        "/api/quote/:symbol",
+        "/api/history/:symbol",
+        "/api/analysis/:symbol",
+        "/api/stock/:symbol",
+        "/api/search",
+        "/api/market",
+        "/api/cache",
+        "/api/status"
+      ],
+
+      note:
+        "API keys are never returned."
+    });
+  }
+);
+
+/* =========================================================
+   API：TW 舊版相容
+========================================================= */
+
+app.get(
+  "/api/tw/quote/:symbol",
+  async (req, res) => {
+    const symbol =
+      cleanSymbol(
+        req.params.symbol
+      );
+
+    const result =
+      await getQuote(symbol);
+
+    res.json(result);
+  }
+);
+
+/* =========================================================
+   首頁
+========================================================= */
+
+app.get(
+  "/",
+  (req, res) => {
+    res.json({
+      server: SERVER_NAME,
+      version: VERSION,
+      status: "ONLINE",
+      message:
+        "IAN STOCK API is running."
+    });
+  }
+);
+
+/* =========================================================
+   404
+========================================================= */
+
+app.use(
+  (req, res) => {
+    res.status(404).json({
+      ok: false,
+      error:
+        "API route not found"
+    });
+  }
+);
+
+/* =========================================================
+   Error
+========================================================= */
+
+app.use(
+  (error, req, res, next) => {
+    console.error(
+      "IAN STOCK ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      ok: false,
+      error:
+        "Internal server error"
+    });
+  }
+);
+
+/* =========================================================
+   啟動
+========================================================= */
+
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `${SERVER_NAME} v${VERSION} running on port ${PORT}`
     );
   }
-
-  res.json({
-    ok: true,
-    count: results.length,
-    results
-  });
-});
-
-// ================================
-// API: MARKET
-// ================================
-
-async function marketQuote(symbol, name) {
-  const quote = await fetchYahooQuote(symbol);
-
-  if (!quote.ok) {
-    return {
-      ok: false,
-      symbol,
-      name,
-      error: quote.error
-    };
-  }
-
-  return {
-    ok: true,
-    symbol,
-    name,
-    price: quote.price,
-    change: quote.change,
-    changePct: quote.changePct,
-    currency: quote.currency,
-    latestTradingDay: quote.latestTradingDay
-  };
-}
-
-app.get("/api/market", async (req, res) => {
-  const results = await Promise.all([
-    marketQuote(
-      "^TWII",
-      "台灣加權指數"
-    ),
-    marketQuote(
-      "^IXIC",
-      "NASDAQ"
-    ),
-    marketQuote(
-      "^GSPC",
-      "S&P 500"
-    ),
-    marketQuote(
-      "TWD=X",
-      "USD/TWD"
-    )
-  ]);
-
-  res.json({
-    ok: true,
-    data: {
-      taiwan: results[0],
-      nasdaq: results[1],
-      sp500: results[2],
-      usdTwd: results[3]
-    },
-    updatedAt: new Date().toISOString()
-  });
-});
-
-// ================================
-// API: CACHE
-// ================================
-
-app.get("/api/cache", (req, res) => {
-  const quotes = {};
-  const histories = {};
-
-  Object.keys(quoteCache).forEach(symbol => {
-    const item = quoteCache[symbol];
-
-    quotes[symbol] = {
-      valid: cacheValid(item),
-      ageSeconds: Math.floor(
-        (Date.now() - item.time) / 1000
-      )
-    };
-  });
-
-  Object.keys(historyCache).forEach(key => {
-    const item = historyCache[key];
-
-    histories[key] = {
-      valid: cacheValid(item),
-      ageSeconds: Math.floor(
-        (Date.now() - item.time) / 1000
-      )
-    };
-  });
-
-  res.json({
-    ok: true,
-    cacheTimeMinutes: CACHE_TIME / 60000,
-    quotes,
-    histories,
-    analysisEntries:
-      Object.keys(analysisCache).length
-  });
-});
-
-// ================================
-// API: STATUS
-// ================================
-
-app.get("/api/status", async (req, res) => {
-  let yahooStatus = "ERROR";
-  let yahooDetail = null;
-
-  try {
-    const test = await fetchYahooQuote("NVDA");
-
-    if (test.ok) {
-      yahooStatus = "OK";
-      yahooDetail = "Yahoo Finance quote data is available.";
-    } else {
-      yahooDetail = test.error;
-    }
-  } catch (error) {
-    yahooDetail = error.message;
-  }
-
-  res.json({
-    server: SERVER_NAME,
-    version: VERSION,
-    status: "ONLINE",
-
-    yahooFinance: yahooStatus,
-
-    yahooFinanceDetail:
-      yahooDetail,
-
-    alphaVantageConfigured:
-      Boolean(
-        process.env.ALPHA_VANTAGE_KEY
-      ),
-
-    cacheEntries: {
-      quotes:
-        Object.keys(quoteCache).length,
-
-      history:
-        Object.keys(historyCache).length,
-
-      analysis:
-        Object.keys(analysisCache).length
-    },
-
-    indicators: [
-      "MA5",
-      "MA20",
-      "MA60",
-      "EMA12",
-      "EMA26",
-      "RSI",
-      "MACD",
-      "Bollinger Bands",
-      "ATR",
-      "VWAP",
-      "Volume",
-      "Support",
-      "Resistance"
-    ],
-
-    endpoints: [
-      "/api/quotes",
-      "/api/quote/:symbol",
-      "/api/history/:symbol",
-      "/api/analysis/:symbol",
-      "/api/stock/:symbol",
-      "/api/search",
-      "/api/market",
-      "/api/cache",
-      "/api/status"
-    ],
-
-    note:
-      "API keys are never returned."
-  });
-});
-
-// ================================
-// ROOT
-// ================================
-
-app.get("/", (req, res) => {
-  res.json({
-    service: SERVER_NAME,
-    version: VERSION,
-    status: "ONLINE",
-    message:
-      "IAN STOCK API is running."
-  });
-});
-
-// ================================
-// 404
-// ================================
-
-app.use((req, res) => {
-  res.status(404).json({
-    ok: false,
-    error: "API route not found",
-    path: req.originalUrl
-  });
-});
-
-// ================================
-// ERROR HANDLER
-// ================================
-
-app.use((error, req, res, next) => {
-  console.error(
-    "IAN STOCK ERROR:",
-    error
-  );
-
-  res.status(500).json({
-    ok: false,
-    error: "Internal server error"
-  });
-});
-
-// ================================
-// START
-// ================================
-
-app.listen(PORT, () => {
-  console.log(
-    `${SERVER_NAME} v${VERSION} running on port ${PORT}`
-  );
-});
+);
