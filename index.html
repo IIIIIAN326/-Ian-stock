@@ -74,8 +74,8 @@ body{font-size:16px}
 <div class="searchbox"><div class="search"><span>⌕</span><input id="search" placeholder="搜尋台股 / 美股 / 公司名稱，例如 2330、TSM、台積電"></div><div class="results" id="results"></div></div>
 <main class="main">
 <section class="page active" id="homePage">
-<div class="hero"><div class="eyebrow">GLOBAL STOCK INTELLIGENCE</div><h1>市場，不只是<br><span style="color:var(--cyan)">價格。</span></h1><p>行情、五檔、買賣量比、技術指標與 AI 分析整合在同一個終端。</p><div class="stats"><div class="stat"><small>TAIEX</small><b id="heroTW">--</b></div><div class="stat"><small>US MARKET</small><b id="heroUS">--</b></div><div class="stat"><small>LIVE STOCKS</small><b id="tracked">0</b></div></div></div>
-<div class="section"><div class="title"><h2>市場總覽</h2><span class="badge">LIVE MARKET</span></div><div class="marketgrid"><div class="market"><small>TAIWAN</small><b id="taiex">--</b><span id="taiexCh">--</span></div><div class="market"><small>S&P 500</small><b id="sp">--</b><span id="spCh">--</span></div><div class="market"><small>NASDAQ</small><b id="nasdaq">--</b><span id="nasdaqCh">--</span></div><div class="market"><small>DOW JONES</small><b id="dow">--</b><span id="dowCh">--</span></div></div></div>
+<div class="hero"><div class="eyebrow">GLOBAL STOCK INTELLIGENCE</div><h1>市場，不只是<br><span style="color:var(--cyan)">價格。</span></h1><p>行情、五檔、買賣量比、技術指標與 AI 分析整合在同一個終端。</p><div class="stats"><div class="stat"><small>TAIEX</small><b id="heroTW">48,163.78</b></div><div class="stat"><small>US MARKET</small><b id="heroUS">7,670.84</b></div><div class="stat"><small>LIVE STOCKS</small><b id="tracked">0</b></div></div></div>
+<div class="section"><div class="title"><h2>市場總覽</h2><span class="badge">LIVE MARKET</span></div><div class="marketgrid"><div class="market"><small>TAIWAN</small><b id="taiex">48,163.78</b><span id="taiexCh" class="up">+1.12%</span></div><div class="market"><small>S&P 500</small><b id="sp">7,670.84</b><span id="spCh" class="down">-0.17%</span></div><div class="market"><small>NASDAQ</small><b id="nasdaq">26,797.54</b><span id="nasdaqCh" class="down">-0.09%</span></div><div class="market"><small>DOW JONES</small><b id="dow">51,349.92</b><span id="dowCh" class="down">-0.26%</span></div></div></div>
 <div class="section"><div class="title"><h2>市場漲跌佔比</h2><small>TRACKED BREADTH</small></div><div class="bread"><b>目前追蹤股票 <span id="breadTotal" style="float:right;color:#71899b">0</span></b><div class="bar"><div class="bu" id="upBar"></div><div class="bd" id="downBar"></div></div><div class="breadleg"><span class="up" id="upText">上漲 0</span><span id="flatText">平盤 0</span><span class="down" id="downText">下跌 0</span></div></div></div>
 <div class="section"><div class="title"><h2>Global Market Radar</h2><small>LIVE STATUS</small></div><div class="radar"><div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="crossx"></div><div class="crossy"></div><div class="sweep"></div><div class="center">IAN AI</div><div class="node n1">● TAIWAN</div><div class="node n2">● USA</div><div class="node n3">● TECH</div><div class="node n4">● AI</div></div></div>
 <div class="section"><div class="title"><h2>熱門股票</h2><small id="stockStatus">LOADING</small></div><div class="tabs"><button class="tab active" onclick="filterMarket('ALL',this)">全部</button><button class="tab" onclick="filterMarket('TW',this)">🇹🇼 台股</button><button class="tab" onclick="filterMarket('US',this)">🇺🇸 美股</button></div><div class="stocks" id="stocks"></div></div>
@@ -156,7 +156,22 @@ function renderStocks(){const a=STOCKS.filter(s=>market==='ALL'||s[2]===market);
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
-async function loadMarket(){let a=[];try{const j=await api('/api/market');a=j.data||[]}catch(e){}const need=['^TWII','^GSPC','^IXIC','^DJI'].filter(s=>!a.some(x=>x.symbol===s));if(need.length){try{const j=await api('/api/quotes?symbols='+encodeURIComponent(need.join(',')));const d=Array.isArray(j)?j:(j.data||[]);a=a.concat(d.filter(x=>x&&x.symbol))}catch(e){}}const fallback=[{symbol:'^TWII',price:47940.13,changePct:0.65},{symbol:'^GSPC',price:7670.84,changePct:-0.17},{symbol:'^IXIC',price:26797.54,changePct:-0.09},{symbol:'^DJI',price:51349.92,changePct:-0.26}];fallback.forEach(f=>{if(!a.some(x=>x.symbol===f.symbol))a.push(f)});const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);if(tw)$('heroTW').textContent=fmt(tw.price);if(sp)$('heroUS').textContent=fmt(sp.price)}
+function loadMarket(){
+  const data=[
+    {symbol:'^TWII',price:48163.78,changePct:1.12},
+    {symbol:'^GSPC',price:7670.84,changePct:-0.17},
+    {symbol:'^IXIC',price:26797.54,changePct:-0.09},
+    {symbol:'^DJI',price:51349.92,changePct:-0.26}
+  ];
+  const tw=marketValue(data,'^TWII'),sp=marketValue(data,'^GSPC'),na=marketValue(data,'^IXIC'),dw=marketValue(data,'^DJI');
+  setMarket('taiex','taiexCh',tw);
+  setMarket('sp','spCh',sp);
+  setMarket('nasdaq','nasdaqCh',na);
+  setMarket('dow','dowCh',dw);
+  $('heroTW').textContent=fmt(tw.price);
+  $('heroUS').textContent=fmt(sp.price);
+}
+
 function setMarket(v,c,q){if(!q)return;$(v).textContent=fmt(q.price);$(c).textContent=pct(q.changePct);$(c).className=cls(q.changePct);}
 async function loadQuotes(){try{const symbols=STOCKS.slice(0,12).map(x=>x[0]).join(',');const j=await api('/api/quotes?symbols='+encodeURIComponent(symbols));const data=Array.isArray(j)?j:(j.data||[]);data.forEach(q=>{if(q&&q.symbol)Q[q.symbol]=q});renderStocks();renderBread();renderTicker();renderWatch();}catch(e){$('stockStatus').textContent='API RETRY';}}
 function renderWatch(){const a=JSON.parse(localStorage.getItem('IAN_WATCH')||'["2330","NVDA"]');$('watchList').innerHTML=a.length?a.map(s=>row(stock(s))).join(''):'<div class="empty">尚未加入自選股</div>';}
