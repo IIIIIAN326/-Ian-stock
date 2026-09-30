@@ -2,27 +2,51 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.ALPHA_VANTAGE_KEY;
 
+// =========================
+// IAN STOCK 行情快取
+// =========================
+
+const cache = {};
+const CACHE_TIME = 60 * 60 * 1000; // 1 小時
+
 async function getUS(symbol) {
+
+  // 有快取，而且還沒過期
+  if (
+    cache[symbol] &&
+    Date.now() - cache[symbol].time < CACHE_TIME
+  ) {
+    return {
+      ...cache[symbol].data,
+      cached: true
+    };
+  }
+
   if (!API_KEY) {
     return {
       ok: false,
       symbol,
-      error: "ALPHA_VANTAGE_KEY is missing on Render"
+      error: "ALPHA_VANTAGE_KEY is missing"
     };
   }
 
   const url =
-    "https://www.alphavantage.co/query?function=GLOBAL_QUOTE" +
-    "&symbol=" + encodeURIComponent(symbol) +
-    "&apikey=" + encodeURIComponent(API_KEY);
+    "https://www.alphavantage.co/query" +
+    "?function=GLOBAL_QUOTE" +
+    "&symbol=" +
+    encodeURIComponent(symbol) +
+    "&apikey=" +
+    encodeURIComponent(API_KEY);
 
   try {
+
     const r = await fetch(url);
     const j = await r.json();
 
@@ -48,12 +72,12 @@ async function getUS(symbol) {
       return {
         ok: false,
         symbol,
-        error: "Alpha Vantage returned no Global Quote data",
+        error: "No quote data",
         rawKeys: Object.keys(j)
       };
     }
 
-    return {
+    const data = {
       ok: true,
       symbol,
       price: Number(q["05. price"]),
@@ -61,20 +85,45 @@ async function getUS(symbol) {
         String(q["10. change percent"] || "").replace("%", "")
       )
     };
+
+    // 存入快取
+    cache[symbol] = {
+      time: Date.now(),
+      data
+    };
+
+    return {
+      ...data,
+      cached: false
+    };
+
   } catch (e) {
+
     return {
       ok: false,
       symbol,
-      error: "Request to Alpha Vantage failed: " + e.message
+      error: "Request failed: " + e.message
     };
   }
 }
 
+
+// =========================
+// 美股行情
+// =========================
+
 app.get("/api/quotes", async (req, res) => {
-  const symbols = ["NVDA", "AAPL", "MSFT"];
+
+  const symbols = [
+    "NVDA",
+    "AAPL",
+    "MSFT"
+  ];
+
   const result = [];
 
   for (const symbol of symbols) {
+
     const q = await getUS(symbol);
 
     if (q.ok) {
@@ -85,7 +134,13 @@ app.get("/api/quotes", async (req, res) => {
   res.json(result);
 });
 
+
+// =========================
+// API 狀態
+// =========================
+
 app.get("/api/status", async (req, res) => {
+
   const q = await getUS("NVDA");
 
   res.json({
@@ -95,15 +150,31 @@ app.get("/api/status", async (req, res) => {
     detail: q.ok
       ? "Alpha Vantage returned quote data."
       : q.error,
-    rawKeys: q.rawKeys || undefined,
+    cached: q.cached || false,
     note: "API key is intentionally never returned."
   });
 });
 
+
+// =========================
+// 首頁
+// =========================
+
 app.get("/", (req, res) => {
+
   res.send("IAN STOCK API ONLINE");
+
 });
 
+
+// =========================
+// 啟動
+// =========================
+
 app.listen(PORT, () => {
-  console.log("IAN STOCK API running on port " + PORT);
+
+  console.log(
+    "IAN STOCK API running on port " + PORT
+  );
+
 });
