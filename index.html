@@ -101,7 +101,17 @@ async function fallbackApi(p){
   if(p.startsWith('/api/stock/')){const sym=decodeURIComponent(p.split('/').pop());const q=await yahooChart(sym,'1mo','1d');return {quote:q,analysis:indicators(q.rows)};}
   throw Error('No fallback');
 }
-async function api(p){try{const r=await fetch(API+p,{cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||r.status);return j}catch(e){return await fallbackApi(p)}}
+async function api(p){
+  try{
+    const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),7000);
+    const r=await fetch(API+p,{cache:'no-store',signal:ctl.signal}); clearTimeout(timer);
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw Error(j.error||r.status);
+    const empty=(p.startsWith('/api/quotes?') && (!Array.isArray(j.data)||j.data.length===0)) || (p==='/api/market' && (!Array.isArray(j.data)||j.data.length<2)) || (p.startsWith('/api/stock/') && !j.quote);
+    if(empty) throw Error('API returned no market data');
+    return j;
+  }catch(e){return await fallbackApi(p)}
+}
 function row(s){const q=Q[s[0]];return `<div class="stock" onclick="openStock('${s[0]}')"><div class="icon">${s[2]}</div><div class="si"><div class="sn">${s[1]}</div><div class="ss">${s[0]} · ${s[2]==='TW'?'台股':'US STOCK'}</div></div><div class="sp"><b>${q?fmt(q.price):'--'}</b><small class="${q?cls(q.changePct):'neutral'}">${q?pct(q.changePct):'等待行情'}</small></div></div>`}
 function renderStocks(){const a=STOCKS.filter(s=>market==='ALL'||s[2]===market);$('stocks').innerHTML=a.map(row).join('');$('stockStatus').textContent=Object.keys(Q).length+' / '+STOCKS.length+' LOADED';$('tracked').textContent=Object.keys(Q).length;}
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
