@@ -1,1055 +1,1641 @@
-const http = require("http");
-const https = require("https");
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+
+app.use(cors({ origin: '*' }));
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const ALPHA = process.env.ALPHA_VANTAGE_KEY || "";
+const ALPHA_KEY = process.env.ALPHA_VANTAGE_KEY || '';
 
-const TW_NAMES = {
-  "2330": "台積電",
-  "2317": "鴻海",
-  "2454": "聯發科",
-  "2303": "聯電",
-  "2382": "廣達",
-  "3711": "日月光投控",
-  "2881": "富邦金",
-  "2882": "國泰金"
+const CACHE = new Map();
+const HISTORY_CACHE = new Map();
+const TW_MARKET_CACHE = { t: 0, v: [] };
+
+const TTL = 30 * 1000;
+const HISTORY_TTL = 5 * 60 * 1000;
+
+const NAME = {
+  '1101':'台泥',
+  '1102':'亞泥',
+  '1103':'嘉泥',
+  '2330':'台積電',
+  '2317':'鴻海',
+  '2454':'聯發科',
+  '2303':'聯電',
+  '2301':'光寶科',
+  '2356':'英業達',
+  '2408':'南亞科',
+  '2609':'陽明',
+  '2610':'華航',
+  '2881':'富邦金',
+  '2912':'統一超',
+  '3035':'智原',
+
+  'NVDA':'NVIDIA',
+  'AAPL':'Apple',
+  'MSFT':'Microsoft',
+  'TSLA':'Tesla',
+  'AMZN':'Amazon'
 };
 
-function send(res, status, data) {
-  res.writeHead(status, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "no-store"
-  });
-
-  res.end(JSON.stringify(data));
+function normSymbol(s) {
+  return String(s || '').trim().toUpperCase();
 }
 
-function get(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(
-      url,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 IAN-STOCK"
-        }
-      },
-      response => {
-        let body = "";
+function yahooSymbol(s) {
+  s = normSymbol(s);
+  return /^\d{4}$/.test(s) ? s + '.TW' : s;
+}
 
-        response.on("data", chunk => {
-          body += chunk;
-        });
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
-        response.on("end", () => {
-          if (response.statusCode >= 400) {
-            reject(new Error("HTTP " + response.statusCode));
-            return;
-          }
+async function fetchJSON(url, ms = 10000) {
 
-          try {
-            resolve(JSON.parse(body));
-          } catch {
-            reject(new Error("JSON parse error"));
-          }
-        });
+  const controller = new AbortController();
+
+  const timer = setTimeout(
+    () => controller.abort(),
+    ms
+  );
+
+  try {
+
+    const r = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'IAN-STOCK/11.0',
+        'Accept': 'application/json'
       }
-    );
-
-    req.setTimeout(12000, () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
     });
 
-    req.on("error", reject);
-  });
-}
-
-function norm(symbol) {
-  return String(symbol || "")
-    .trim()
-    .toUpperCase()
-    .replace(".TW", "");
-}
-
-function isUS(symbol) {
-  return /^[A-Z]+$/.test(symbol);
-}
-
-function num(value) {
-  const n = Number(String(value ?? "").replace(/,/g, ""));
-  return Number.isFinite(n) ? n : null;
-}
-
-function mean(arr) {
-  if (!arr.length) return null;
-
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
-}
-
-function sma(arr, period) {
-  return arr.map((_, i) => {
-    if (i < period - 1) return null;
-
-    return mean(arr.slice(i - period + 1, i + 1));
-  });
-}
-
-function ema(arr, period) {
-  if (!arr.length) return [];
-
-  const k = 2 / (period + 1);
-  const result = [];
-
-  let previous = arr[0];
-
-  arr.forEach((value, i) => {
-    if (i === 0) {
-      previous = value;
-    } else {
-      previous = value * k + previous * (1 - k);
+    if (!r.ok) {
+      throw new Error('HTTP ' + r.status);
     }
 
-    result.push(previous);
-  });
+    return await r.json();
 
-  return result;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-function rsi(close, period = 14) {
-  const result = Array(close.length).fill(null);
+/* =========================
+   Yahoo
+========================= */
 
-  if (close.length <= period) {
-    return result;
+function quoteFromYahoo(s, j) {
+
+  const m =
+    j?.chart?.result?.[0]?.meta;
+
+  if (!m) return null;
+
+  const price =
+    Number(
+      m.regularMarketPrice ??
+      m.previousClose
+    );
+
+  const prev =
+    Number(
+      m.chartPreviousClose ??
+      m.previousClose
+    );
+
+  if (!Number.isFinite(price)) {
+    return null;
   }
 
-  let gain = 0;
-  let loss = 0;
+  return {
+    symbol: s,
 
-  for (let i = 1; i <= period; i++) {
-    const diff = close[i] - close[i - 1];
+    name:
+      NAME[s] ||
+      m.longName ||
+      m.shortName ||
+      s,
 
-    if (diff >= 0) {
-      gain += diff;
-    } else {
-      loss -= diff;
+    market:
+      /^\d{4}$/.test(s)
+        ? 'TW'
+        : 'US',
+
+    price,
+
+    previousClose:
+      Number.isFinite(prev)
+        ? prev
+        : null,
+
+    changePct:
+      Number.isFinite(prev) && prev
+        ? ((price - prev) / prev) * 100
+        : null,
+
+    currency:
+      m.currency ||
+      (/^\d{4}$/.test(s)
+        ? 'TWD'
+        : 'USD'),
+
+    exchange:
+      m.exchangeName ||
+      m.fullExchangeName ||
+      '',
+
+    timestamp:
+      m.regularMarketTime
+        ? m.regularMarketTime * 1000
+        : Date.now(),
+
+    volume:
+      Number(m.regularMarketVolume) || null
+  };
+}
+
+async function yahooQuote(s) {
+
+  const key = 'q:' + s;
+
+  const old = CACHE.get(key);
+
+  if (
+    old &&
+    Date.now() - old.t < TTL
+  ) {
+    return old.v;
+  }
+
+  const url =
+    'https://query1.finance.yahoo.com/v8/finance/chart/' +
+    encodeURIComponent(
+      yahooSymbol(s)
+    ) +
+    '?range=5d&interval=1d&events=div%2Csplits';
+
+  const j =
+    await fetchJSON(url);
+
+  const q =
+    quoteFromYahoo(s, j);
+
+  if (q) {
+    CACHE.set(
+      key,
+      {
+        t: Date.now(),
+        v: q
+      }
+    );
+  }
+
+  return q;
+}
+
+/* =========================
+   Alpha Vantage 美股備援
+========================= */
+
+async function alphaQuote(s) {
+
+  if (
+    !ALPHA_KEY ||
+    /^\d{4}$/.test(s)
+  ) {
+    return null;
+  }
+
+  try {
+
+    const url =
+      'https://www.alphavantage.co/query' +
+      '?function=GLOBAL_QUOTE' +
+      '&symbol=' +
+      encodeURIComponent(s) +
+      '&apikey=' +
+      encodeURIComponent(ALPHA_KEY);
+
+    const j =
+      await fetchJSON(url);
+
+    const q =
+      j?.['Global Quote'];
+
+    if (!q?.['05. price']) {
+      return null;
     }
+
+    const price =
+      Number(q['05. price']);
+
+    const pct =
+      Number(
+        String(
+          q['10. change percent'] || ''
+        ).replace('%', '')
+      );
+
+    return {
+      symbol: s,
+      name: NAME[s] || s,
+      market: 'US',
+      price,
+
+      changePct:
+        Number.isFinite(pct)
+          ? pct
+          : null,
+
+      previousClose:
+        Number(
+          q['08. previous close']
+        ) || null,
+
+      currency: 'USD',
+
+      timestamp: Date.now(),
+
+      volume:
+        Number(q['06. volume']) || null
+    };
+
+  } catch {
+
+    return null;
   }
-
-  gain /= period;
-  loss /= period;
-
-  result[period] =
-    loss === 0
-      ? 100
-      : 100 - 100 / (1 + gain / loss);
-
-  for (let i = period + 1; i < close.length; i++) {
-    const diff = close[i] - close[i - 1];
-
-    gain =
-      (gain * (period - 1) + Math.max(diff, 0)) /
-      period;
-
-    loss =
-      (loss * (period - 1) + Math.max(-diff, 0)) /
-      period;
-
-    result[i] =
-      loss === 0
-        ? 100
-        : 100 - 100 / (1 + gain / loss);
-  }
-
-  return result;
 }
 
-function atr(rows, period = 14) {
-  const tr = [];
+/* =========================
+   TWSE
+========================= */
 
-  for (let i = 0; i < rows.length; i++) {
-    if (i === 0) {
-      tr.push(rows[i].high - rows[i].low);
-    } else {
-      tr.push(
-        Math.max(
-          rows[i].high - rows[i].low,
-          Math.abs(rows[i].high - rows[i - 1].close),
-          Math.abs(rows[i].low - rows[i - 1].close)
-        )
+function num(v) {
+
+  if (
+    v === null ||
+    v === undefined ||
+    v === ''
+  ) {
+    return null;
+  }
+
+  const n =
+    Number(
+      String(v)
+        .replace(/,/g, '')
+        .replace(/%/g, '')
+        .trim()
+    );
+
+  return Number.isFinite(n)
+    ? n
+    : null;
+}
+
+function normalizeTwse(row) {
+
+  const symbol =
+    normSymbol(row.Code);
+
+  if (!/^\d{4}$/.test(symbol)) {
+    return null;
+  }
+
+  const price =
+    num(row.ClosingPrice);
+
+  if (price === null) {
+    return null;
+  }
+
+  const change =
+    num(row.Change);
+
+  const previous =
+    change !== null
+      ? price - change
+      : null;
+
+  return {
+
+    symbol,
+
+    name:
+      String(
+        row.Name ||
+        NAME[symbol] ||
+        symbol
+      ).trim(),
+
+    market: 'TW',
+
+    exchange: 'TWSE',
+
+    price,
+
+    previousClose:
+      previous,
+
+    change,
+
+    changePct:
+      previous
+        ? change / previous * 100
+        : 0,
+
+    open:
+      num(row.OpeningPrice),
+
+    high:
+      num(row.HighestPrice),
+
+    low:
+      num(row.LowestPrice),
+
+    volume:
+      num(row.TradeVolume),
+
+    currency: 'TWD',
+
+    timestamp: Date.now()
+  };
+}
+
+/* =========================
+   TPEx
+========================= */
+
+function normalizeTpex(row) {
+
+  const symbol =
+    normSymbol(
+      row.SecuritiesCompanyCode
+    );
+
+  if (!/^\d{4}$/.test(symbol)) {
+    return null;
+  }
+
+  const price =
+    num(row.Close);
+
+  if (price === null) {
+    return null;
+  }
+
+  const change =
+    num(row.Change);
+
+  const previous =
+    change !== null
+      ? price - change
+      : null;
+
+  return {
+
+    symbol,
+
+    name:
+      String(
+        row.CompanyName ||
+        NAME[symbol] ||
+        symbol
+      ).trim(),
+
+    market: 'TW',
+
+    exchange: 'TPEx',
+
+    price,
+
+    previousClose:
+      previous,
+
+    change,
+
+    changePct:
+      previous
+        ? change / previous * 100
+        : 0,
+
+    open:
+      num(row.Open),
+
+    high:
+      num(row.High),
+
+    low:
+      num(row.Low),
+
+    volume:
+      num(row.TradingShares),
+
+    currency: 'TWD',
+
+    timestamp: Date.now()
+  };
+}
+
+/* =========================
+   全台股
+========================= */
+
+async function getAllTaiwanStocks(
+  force = false
+) {
+
+  if (
+    !force &&
+    TW_MARKET_CACHE.v.length &&
+    Date.now() -
+      TW_MARKET_CACHE.t <
+      60000
+  ) {
+    return TW_MARKET_CACHE.v;
+  }
+
+  const [twse, tpex] =
+    await Promise.all([
+
+      fetchJSON(
+        'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',
+        15000
+      ).catch(() => []),
+
+      fetchJSON(
+        'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes',
+        15000
+      ).catch(() => [])
+
+    ]);
+
+  const map =
+    new Map();
+
+  for (
+    const row of
+    Array.isArray(twse)
+      ? twse
+      : []
+  ) {
+
+    const q =
+      normalizeTwse(row);
+
+    if (q) {
+      map.set(
+        q.symbol,
+        q
       );
     }
   }
 
-  return sma(tr, period);
-}
-
-function calculateIndicators(rows) {
-  const close = rows.map(x => x.close);
-
-  const ma5 = sma(close, 5);
-  const ma20 = sma(close, 20);
-  const ma60 = sma(close, 60);
-
-  const ema12 = ema(close, 12);
-  const ema26 = ema(close, 26);
-
-  const macd = ema12.map(
-    (value, i) => value - ema26[i]
-  );
-
-  const signal = ema(macd, 9);
-
-  const rsiData = rsi(close, 14);
-  const atrData = atr(rows, 14);
-
-  const middle = ma20.at(-1);
-
-  const last20 = close.slice(-20);
-
-  const avg = mean(last20) || close.at(-1);
-
-  const variance =
-    mean(
-      last20.map(x => Math.pow(x - avg, 2))
-    ) || 0;
-
-  const sd = Math.sqrt(variance);
-
-  return {
-    MA5: ma5.at(-1),
-    MA20: ma20.at(-1),
-    MA60: ma60.at(-1),
-
-    EMA12: ema12.at(-1),
-    EMA26: ema26.at(-1),
-
-    RSI: rsiData.at(-1),
-
-    macd: macd.at(-1),
-    signal: signal.at(-1),
-    histogram:
-      macd.at(-1) - signal.at(-1),
-
-    middle,
-
-    upper:
-      (middle || avg) + sd * 2,
-
-    lower:
-      (middle || avg) - sd * 2,
-
-    ATR: atrData.at(-1),
-
-    support:
-      Math.min(...close.slice(-20)),
-
-    resistance:
-      Math.max(...close.slice(-20)),
-
-    VWAP:
-      mean(
-        rows
-          .slice(-20)
-          .map(x => x.close)
-      )
-  };
-}
-
-function makeAnalysis(indicators, price) {
-  let score = 50;
-
-  let trend = "震盪";
-  let momentum = "中性";
-
-  if (
-    indicators.MA20 &&
-    price > indicators.MA20
+  for (
+    const row of
+    Array.isArray(tpex)
+      ? tpex
+      : []
   ) {
-    score += 12;
-    trend = "偏多";
-  } else if (
-    indicators.MA20 &&
-    price < indicators.MA20
-  ) {
-    score -= 12;
-    trend = "偏空";
-  }
 
-  if (
-    indicators.MA60 &&
-    price > indicators.MA60
-  ) {
-    score += 10;
-  } else if (
-    indicators.MA60 &&
-    price < indicators.MA60
-  ) {
-    score -= 10;
-  }
+    const q =
+      normalizeTpex(row);
 
-  if (indicators.RSI != null) {
-    if (indicators.RSI > 70) {
-      score -= 5;
-      momentum = "過熱";
-    } else if (indicators.RSI > 55) {
-      score += 8;
-      momentum = "偏強";
-    } else if (indicators.RSI < 30) {
-      score += 4;
-      momentum = "超賣";
-    } else if (indicators.RSI < 45) {
-      score -= 6;
-      momentum = "偏弱";
+    if (q) {
+      map.set(
+        q.symbol,
+        q
+      );
     }
   }
 
-  if (
-    indicators.macd >
-    indicators.signal
-  ) {
-    score += 8;
-  } else {
-    score -= 8;
+  const out =
+    [...map.values()];
+
+  TW_MARKET_CACHE.t =
+    Date.now();
+
+  TW_MARKET_CACHE.v =
+    out;
+
+  return out;
+}
+
+/* =========================
+   單檔行情
+========================= */
+
+async function getQuote(s) {
+
+  s = normSymbol(s);
+
+  try {
+
+    const q =
+      await yahooQuote(s);
+
+    if (q) {
+      return q;
+    }
+
+  } catch {}
+
+  const a =
+    await alphaQuote(s);
+
+  if (a) {
+    return a;
   }
 
-  score = Math.max(
-    0,
-    Math.min(100, Math.round(score))
+  if (/^\d{4}$/.test(s)) {
+
+    const arr =
+      await getAllTaiwanStocks();
+
+    return (
+      arr.find(
+        x => x.symbol === s
+      ) || null
+    );
+  }
+
+  return null;
+}
+
+/* =========================
+   多檔
+========================= */
+
+async function mapLimit(
+  items,
+  limit,
+  fn
+) {
+
+  const out =
+    new Array(items.length);
+
+  let next = 0;
+
+  async function worker() {
+
+    while (true) {
+
+      const i = next++;
+
+      if (
+        i >= items.length
+      ) {
+        return;
+      }
+
+      try {
+
+        out[i] =
+          await fn(
+            items[i],
+            i
+          );
+
+      } catch {
+
+        out[i] = null;
+      }
+
+      await sleep(80);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      {
+        length:
+          Math.min(
+            limit,
+            items.length
+          )
+      },
+      worker
+    )
   );
+
+  return out;
+}
+
+async function getQuotes(symbols) {
+
+  const clean =
+    [
+      ...new Set(
+        symbols
+          .map(normSymbol)
+          .filter(Boolean)
+      )
+    ].slice(0, 120);
+
+  const out =
+    await mapLimit(
+      clean,
+      8,
+      getQuote
+    );
+
+  return out.filter(Boolean);
+}
+
+/* =========================
+   K線歷史
+========================= */
+
+async function history(
+  s,
+  range = '3mo',
+  interval = '1d'
+) {
+
+  s =
+    normSymbol(s);
+
+  const key =
+    `h:${s}:${range}:${interval}`;
+
+  const old =
+    HISTORY_CACHE.get(key);
+
+  if (
+    old &&
+    Date.now() -
+      old.t <
+      HISTORY_TTL
+  ) {
+    return old.v;
+  }
+
+  const url =
+    'https://query1.finance.yahoo.com/v8/finance/chart/' +
+    encodeURIComponent(
+      yahooSymbol(s)
+    ) +
+    '?range=' +
+    encodeURIComponent(range) +
+    '&interval=' +
+    encodeURIComponent(interval) +
+    '&events=div%2Csplits';
+
+  const j =
+    await fetchJSON(url);
+
+  const r =
+    j?.chart?.result?.[0];
+
+  if (!r) {
+    throw new Error(
+      '沒有歷史資料'
+    );
+  }
+
+  const q =
+    r.indicators?.quote?.[0] ||
+    {};
+
+  const a = [];
+
+  for (
+    let i = 0;
+    i <
+    (r.timestamp || []).length;
+    i++
+  ) {
+
+    const close =
+      Number(
+        q.close?.[i]
+      );
+
+    if (
+      Number.isFinite(close)
+    ) {
+
+      a.push({
+
+        time:
+          r.timestamp[i] *
+          1000,
+
+        open:
+          Number(
+            q.open?.[i]
+          ) || null,
+
+        high:
+          Number(
+            q.high?.[i]
+          ) || null,
+
+        low:
+          Number(
+            q.low?.[i]
+          ) || null,
+
+        close,
+
+        volume:
+          Number(
+            q.volume?.[i]
+          ) || 0
+      });
+    }
+  }
+
+  HISTORY_CACHE.set(
+    key,
+    {
+      t: Date.now(),
+      v: a
+    }
+  );
+
+  return a;
+}
+
+/* =========================
+   技術指標
+========================= */
+
+function sma(v, n) {
+
+  return v.length < n
+    ? null
+    : v
+        .slice(-n)
+        .reduce(
+          (a, b) => a + b,
+          0
+        ) / n;
+}
+
+function emaSeries(v, n) {
+
+  if (v.length < n) {
+    return [];
+  }
+
+  const k =
+    2 / (n + 1);
+
+  let e =
+    v
+      .slice(0, n)
+      .reduce(
+        (a, b) => a + b,
+        0
+      ) / n;
+
+  const out = [e];
+
+  for (
+    let i = n;
+    i < v.length;
+    i++
+  ) {
+
+    e =
+      v[i] * k +
+      e * (1 - k);
+
+    out.push(e);
+  }
+
+  return out;
+}
+
+function rsi(v, n = 14) {
+
+  if (v.length <= n) {
+    return null;
+  }
+
+  let g = 0;
+  let l = 0;
+
+  for (
+    let i = 1;
+    i <= n;
+    i++
+  ) {
+
+    const d =
+      v[i] - v[i - 1];
+
+    if (d >= 0) {
+      g += d;
+    } else {
+      l -= d;
+    }
+  }
+
+  let ag = g / n;
+  let al = l / n;
+
+  for (
+    let i = n + 1;
+    i < v.length;
+    i++
+  ) {
+
+    const d =
+      v[i] - v[i - 1];
+
+    ag =
+      (
+        ag * (n - 1) +
+        (d > 0 ? d : 0)
+      ) / n;
+
+    al =
+      (
+        al * (n - 1) +
+        (d < 0 ? -d : 0)
+      ) / n;
+  }
+
+  return al === 0
+    ? 100
+    : 100 -
+        100 /
+          (
+            1 +
+            ag / al
+          );
+}
+
+function atr(a, n = 14) {
+
+  if (
+    a.length <
+    n + 1
+  ) {
+    return null;
+  }
+
+  const tr = [];
+
+  for (
+    let i = 1;
+    i < a.length;
+    i++
+  ) {
+
+    tr.push(
+      Math.max(
+        a[i].high -
+          a[i].low,
+
+        Math.abs(
+          a[i].high -
+          a[i - 1].close
+        ),
+
+        Math.abs(
+          a[i].low -
+          a[i - 1].close
+        )
+      )
+    );
+  }
+
+  return (
+    tr
+      .slice(-n)
+      .reduce(
+        (x, y) => x + y,
+        0
+      ) / n
+  );
+}
+
+function indicators(a) {
+
+  const c =
+    a.map(x => x.close);
+
+  const v =
+    a.map(
+      x => x.volume || 0
+    );
+
+  const e12 =
+    emaSeries(c, 12);
+
+  const e26 =
+    emaSeries(c, 26);
+
+  const macd =
+    e12.length &&
+    e26.length
+      ? e12.at(-1) -
+        e26.at(-1)
+      : null;
+
+  const sd = n => {
+
+    if (c.length < n) {
+      return null;
+    }
+
+    const z =
+      c.slice(-n);
+
+    const m =
+      z.reduce(
+        (x, y) => x + y,
+        0
+      ) / n;
+
+    return Math.sqrt(
+      z.reduce(
+        (x, y) =>
+          x +
+          (y - m) ** 2,
+        0
+      ) / n
+    );
+  };
+
+  const ma20 =
+    sma(c, 20);
+
+  const s20 =
+    sd(20);
+
+  return {
+
+    MA5:
+      sma(c, 5),
+
+    MA20:
+      ma20,
+
+    MA60:
+      sma(c, 60),
+
+    EMA12:
+      e12.at(-1) || null,
+
+    EMA26:
+      e26.at(-1) || null,
+
+    RSI:
+      rsi(c),
+
+    MACD:
+      macd,
+
+    Bollinger:
+      ma20 !== null &&
+      s20 !== null
+        ? {
+            middle: ma20,
+            upper:
+              ma20 +
+              2 * s20,
+            lower:
+              ma20 -
+              2 * s20
+          }
+        : null,
+
+    ATR:
+      atr(a),
+
+    volume:
+      v.at(-1) || 0,
+
+    support:
+      c.length
+        ? Math.min(
+            ...c.slice(-20)
+          )
+        : null,
+
+    resistance:
+      c.length
+        ? Math.max(
+            ...c.slice(-20)
+          )
+        : null
+  };
+}
+
+/* =========================
+   AI資訊摘要
+========================= */
+
+function analysis(ind, last) {
+
+  let score = null;
+
+  let trend =
+    '資料不足';
+
+  let momentum =
+    '資料不足';
+
+  let risk =
+    '資料不足';
+
+  if (
+    Number.isFinite(ind.RSI) &&
+    Number.isFinite(ind.MA20) &&
+    Number.isFinite(last)
+  ) {
+
+    let s = 50;
+
+    if (
+      last > ind.MA20
+    ) s += 10;
+
+    if (
+      ind.RSI > 55
+    ) s += 8;
+
+    if (
+      ind.RSI > 70
+    ) s -= 10;
+
+    if (
+      ind.RSI < 30
+    ) s += 5;
+
+    if (
+      Number.isFinite(ind.MA60) &&
+      last > ind.MA60
+    ) s += 8;
+
+    score =
+      Math.max(
+        0,
+        Math.min(
+          100,
+          Math.round(s)
+        )
+      );
+
+    trend =
+      last > ind.MA20
+        ? '偏多觀察'
+        : '偏弱觀察';
+
+    momentum =
+      ind.RSI > 60
+        ? '動能偏強'
+        : ind.RSI < 40
+          ? '動能偏弱'
+          : '中性';
+
+    risk =
+      ind.ATR &&
+      last
+        ? ind.ATR / last > 0.04
+          ? '波動偏高'
+          : '一般'
+        : '資料不足';
+  }
 
   return {
     score,
     trend,
     momentum,
-
-    summary:
-      `目前價格 ${price}；均線、RSI、MACD 與波動指標顯示為「${trend}／${momentum}」。` +
-      `這是規則式資訊整理，不代表未來報酬或買賣指示。`
+    risk,
+    note:
+      'AI Score 為技術資料的資訊性摘要，不是投資建議。',
+    ...ind
   };
 }
 
-async function yahooHistory(
-  symbol,
-  range = "6mo"
-) {
-  const days = {
-    "1mo": 30,
-    "3mo": 90,
-    "6mo": 180,
-    "1y": 365,
-    "2y": 730
-  }[range] || 180;
+/* =========================
+   API
+========================= */
 
-  const end =
-    Math.floor(Date.now() / 1000);
+app.get(
+  '/api/status',
+  (req, res) => {
 
-  const start =
-    end - days * 86400;
+    res.json({
 
-  const url =
-    "https://query1.finance.yahoo.com/v8/finance/chart/" +
-    encodeURIComponent(symbol) +
-    `?period1=${start}&period2=${end}` +
-    "&interval=1d&events=history";
+      server:
+        'IAN STOCK API',
 
-  const json = await get(url);
+      version:
+        '11.0.0',
 
-  const result =
-    json.chart?.result?.[0];
+      status:
+        'ONLINE',
 
-  if (!result) {
-    throw new Error("Yahoo no data");
+      yahooFinance:
+        'ENABLED',
+
+      alphaVantageConfigured:
+        Boolean(ALPHA_KEY)
+
+    });
   }
+);
 
-  const quote =
-    result.indicators.quote[0];
-
-  const rows =
-    result.timestamp
-      .map((timestamp, i) => ({
-        date:
-          new Date(
-            timestamp * 1000
-          )
-            .toISOString()
-            .slice(0, 10),
-
-        open: num(quote.open[i]),
-        high: num(quote.high[i]),
-        low: num(quote.low[i]),
-        close: num(quote.close[i]),
-        volume: num(quote.volume[i])
-      }))
-      .filter(x => x.close != null);
-
-  const last = rows.at(-1);
-  const previous = rows.at(-2);
-
-  const meta = result.meta || {};
-
-  return {
-    quote: {
-      symbol,
-      name:
-        meta.longName ||
-        meta.shortName ||
-        symbol,
-
-      market: "US",
-
-      price: last?.close,
-
-      previousClose:
-        previous?.close,
-
-      change:
-        last && previous
-          ? last.close - previous.close
-          : null,
-
-      changePct:
-        last && previous
-          ? ((last.close - previous.close) /
-              previous.close) *
-            100
-          : null,
-
-      volume: last?.volume,
-
-      source: "Yahoo Finance"
-    },
-
-    rows
-  };
-}
-
-async function twseHistory(
-  symbol,
-  range = "6mo"
-) {
-  const months = {
-    "1mo": 2,
-    "3mo": 4,
-    "6mo": 7,
-    "1y": 13,
-    "2y": 25
-  }[range] || 7;
-
-  const today = new Date();
-
-  const rows = [];
-
-  for (let i = 0; i < months; i++) {
-    const date =
-      new Date(
-        today.getFullYear(),
-        today.getMonth() - i,
-        1
-      );
-
-    const y =
-      date.getFullYear();
-
-    const m =
-      String(
-        date.getMonth() + 1
-      ).padStart(2, "0");
-
-    const url =
-      `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${y}${m}01&stockNo=${encodeURIComponent(symbol)}`;
+app.get(
+  '/api/tw-stocks',
+  async (req, res) => {
 
     try {
-      const json = await get(url);
 
-      if (!json.data) continue;
+      const data =
+        await getAllTaiwanStocks();
 
-      for (const row of json.data) {
-        const close = num(row[6]);
+      res.json({
 
-        if (close == null) continue;
+        data,
 
-        rows.push({
-          date: row[0],
-          volume: num(row[1]),
-          open: num(row[3]),
-          high: num(row[4]),
-          low: num(row[5]),
-          close
-        });
-      }
-    } catch {}
-  }
+        count:
+          data.length,
 
-  rows.sort(
-    (a, b) =>
-      a.date.localeCompare(b.date)
-  );
-
-  return rows;
-}
-
-async function twseQuote(symbol) {
-  const rows =
-    await twseHistory(
-      symbol,
-      "1mo"
-    );
-
-  if (!rows.length) {
-    throw new Error(
-      "TWSE no data"
-    );
-  }
-
-  const last = rows.at(-1);
-  const previous = rows.at(-2);
-
-  return {
-    symbol,
-
-    name:
-      TW_NAMES[symbol] ||
-      symbol,
-
-    market: "TW",
-
-    price: last.close,
-
-    previousClose:
-      previous?.close,
-
-    change:
-      previous
-        ? last.close -
-          previous.close
-        : null,
-
-    changePct:
-      previous
-        ? ((last.close -
-            previous.close) /
-            previous.close) *
-          100
-        : null,
-
-    volume: last.volume,
-
-    source: "TWSE"
-  };
-}
-
-async function getQuote(symbol) {
-  symbol = norm(symbol);
-
-  if (isUS(symbol)) {
-    const data =
-      await yahooHistory(
-        symbol,
-        "1mo"
-      );
-
-    return data.quote;
-  }
-
-  return twseQuote(symbol);
-}
-
-async function getHistory(
-  symbol,
-  range
-) {
-  symbol = norm(symbol);
-
-  if (isUS(symbol)) {
-    const data =
-      await yahooHistory(
-        symbol,
-        range
-      );
-
-    return data.rows;
-  }
-
-  return twseHistory(
-    symbol,
-    range
-  );
-}
-
-async function getInstitutional(
-  symbol
-) {
-  if (isUS(symbol)) {
-    return {};
-  }
-
-  const today =
-    new Date();
-
-  const date =
-    `${today.getFullYear()}` +
-    `${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}` +
-    `${String(
-      today.getDate()
-    ).padStart(2, "0")}`;
-
-  try {
-    const url =
-      `https://www.twse.com.tw/rwd/zh/fund/T86?date=${date}&selectType=ALL&response=json`;
-
-    const json =
-      await get(url);
-
-    const row =
-      (json.data || [])
-        .find(
-          x =>
-            String(x[0]).trim() ===
-            String(symbol)
-        );
-
-    if (!row) return {};
-
-    return {
-      date,
-
-      foreignBuy:
-        num(row[2]),
-
-      foreignSell:
-        num(row[3]),
-
-      foreignNet:
-        num(row[4]),
-
-      trustBuy:
-        num(row[5]),
-
-      trustSell:
-        num(row[6]),
-
-      trustNet:
-        num(row[7]),
-
-      dealerBuy:
-        num(row[8]),
-
-      dealerSell:
-        num(row[9]),
-
-      dealerNet:
-        num(row[10])
-    };
-  } catch {
-    return {};
-  }
-}
-
-async function getStock(
-  symbol
-) {
-  symbol = norm(symbol);
-
-  const quote =
-    await getQuote(symbol);
-
-  const rows =
-    await getHistory(
-      symbol,
-      "6mo"
-    );
-
-  const indicators =
-    calculateIndicators(
-      rows
-    );
-
-  const analysis =
-    makeAnalysis(
-      indicators,
-      quote.price
-    );
-
-  const institutional =
-    await getInstitutional(
-      symbol
-    );
-
-  return {
-    quote,
-    indicators,
-    analysis,
-    institutional,
-    dataPoints:
-      rows.length
-  };
-}
-
-async function searchStocks(
-  query
-) {
-  query =
-    String(query || "")
-      .toLowerCase();
-
-  const stocks =
-    Object.entries(TW_NAMES)
-      .map(
-        ([symbol, name]) => ({
-          symbol,
-          name,
-          market: "TW"
-        })
-      );
-
-  stocks.push(
-    {
-      symbol: "NVDA",
-      name: "NVIDIA",
-      market: "US"
-    },
-    {
-      symbol: "AAPL",
-      name: "Apple",
-      market: "US"
-    },
-    {
-      symbol: "MSFT",
-      name: "Microsoft",
-      market: "US"
-    },
-    {
-      symbol: "TSLA",
-      name: "Tesla",
-      market: "US"
-    }
-  );
-
-  return stocks.filter(
-    x =>
-      x.symbol
-        .toLowerCase()
-        .includes(query) ||
-      x.name
-        .toLowerCase()
-        .includes(query)
-  );
-}
-
-async function getMarket() {
-  const symbols = [
-    "2330",
-    "2317",
-    "2454",
-    "2303",
-    "2382",
-    "3711",
-    "2881",
-    "2882",
-    "NVDA",
-    "AAPL",
-    "MSFT",
-    "TSLA"
-  ];
-
-  const result = [];
-
-  for (const symbol of symbols) {
-    try {
-      result.push(
-        await getQuote(symbol)
-      );
-    } catch {
-      result.push({
-        symbol,
-
-        name:
-          TW_NAMES[symbol] ||
-          symbol,
-
-        market:
-          isUS(symbol)
-            ? "US"
-            : "TW",
-
-        price: null,
+        timestamp:
+          Date.now(),
 
         source:
-          "unavailable"
+          'TWSE + TPEx OpenAPI',
+
+        freshness:
+          'latest market snapshot'
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '台股全市場行情暫時無法取得'
+        });
+    }
+  }
+);
+
+app.get(
+  '/api/quote/:symbol',
+  async (req, res) => {
+
+    try {
+
+      const q =
+        await getQuote(
+          req.params.symbol
+        );
+
+      if (!q) {
+
+        return res
+          .status(502)
+          .json({
+            error:
+              '行情來源暫時無法取得'
+          });
+      }
+
+      res.json({
+        data: q
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '行情來源暫時無法取得'
+        });
+    }
+  }
+);
+
+app.get(
+  '/api/quotes',
+  async (req, res) => {
+
+    const raw =
+      (
+        req.query.symbols ||
+        ''
+      ).split(',');
+
+    const data =
+      await getQuotes(raw);
+
+    res.json({
+      data,
+      returned:
+        data.length,
+      timestamp:
+        Date.now()
+    });
+  }
+);
+
+app.get(
+  '/api/live',
+  async (req, res) => {
+
+    try {
+
+      const raw =
+        String(
+          req.query.symbols || ''
+        )
+          .split(',')
+          .map(normSymbol)
+          .filter(Boolean);
+
+      const tw =
+        await getAllTaiwanStocks();
+
+      const twMap =
+        new Map(
+          tw.map(
+            x => [
+              x.symbol,
+              x
+            ]
+          )
+        );
+
+      const selected =
+        raw.filter(
+          x => /^\d{4}$/.test(x)
+        );
+
+      const us =
+        raw.filter(
+          x => !/^\d{4}$/.test(x)
+        );
+
+      const data = [
+
+        ...selected
+          .map(
+            x => twMap.get(x)
+          )
+          .filter(Boolean),
+
+        ...(
+          us.length
+            ? await getQuotes(us)
+            : []
+        )
+
+      ];
+
+      res.json({
+        data,
+        timestamp:
+          Date.now()
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '行情暫時無法取得'
+        });
+    }
+  }
+);
+
+app.get(
+  '/api/history/:symbol',
+  async (req, res) => {
+
+    try {
+
+      const data =
+        await history(
+          req.params.symbol,
+          req.query.range ||
+            '3mo',
+          req.query.interval ||
+            '1d'
+        );
+
+      res.json({
+
+        symbol:
+          normSymbol(
+            req.params.symbol
+          ),
+
+        data
+
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '歷史資料暫時無法取得'
+        });
+    }
+  }
+);
+
+app.get(
+  '/api/analysis/:symbol',
+  async (req, res) => {
+
+    try {
+
+      const q =
+        await getQuote(
+          req.params.symbol
+        );
+
+      const h =
+        await history(
+          req.params.symbol
+        );
+
+      const ind =
+        indicators(h);
+
+      res.json({
+
+        symbol:
+          normSymbol(
+            req.params.symbol
+          ),
+
+        analysis:
+          analysis(
+            ind,
+            q?.price
+          )
+
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '技術分析暫時無法取得'
+        });
+    }
+  }
+);
+
+app.get(
+  '/api/stock/:symbol',
+  async (req, res) => {
+
+    try {
+
+      const q =
+        await getQuote(
+          req.params.symbol
+        );
+
+      const h =
+        await history(
+          req.params.symbol
+        );
+
+      const ind =
+        indicators(h);
+
+      res.json({
+
+        quote: q,
+
+        history: h,
+
+        analysis:
+          analysis(
+            ind,
+            q?.price
+          )
+
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            '股票資料暫時無法取得'
+        });
+    }
+  }
+);
+
+/* =========================
+   搜尋
+========================= */
+
+app.get(
+  '/api/search',
+  async (req, res) => {
+
+    const q =
+      String(
+        req.query.q || ''
+      ).trim();
+
+    if (!q) {
+      return res.json({
+        data: []
+      });
+    }
+
+    try {
+
+      const tw =
+        await getAllTaiwanStocks();
+
+      const local =
+        tw
+          .filter(
+            x =>
+              x.symbol.includes(
+                q.toUpperCase()
+              ) ||
+              x.name.includes(q)
+          )
+          .slice(0, 20)
+          .map(
+            x => ({
+              symbol: x.symbol,
+              name: x.name,
+              market: 'TW'
+            })
+          );
+
+      if (local.length) {
+
+        return res.json({
+          data: local
+        });
+      }
+
+      const j =
+        await fetchJSON(
+          'https://query1.finance.yahoo.com/v1/finance/search?q=' +
+          encodeURIComponent(q) +
+          '&quotesCount=15&newsCount=0'
+        );
+
+      const data =
+        (j.quotes || [])
+          .filter(
+            x =>
+              [
+                'EQUITY',
+                'ETF'
+              ].includes(
+                x.quoteType
+              )
+          )
+          .map(
+            x => ({
+              symbol:
+                x.symbol,
+
+              name:
+                x.longname ||
+                x.shortname ||
+                x.symbol,
+
+              market:
+                x.exchange === 'TAI'
+                  ? 'TW'
+                  : 'US'
+            })
+          );
+
+      res.json({
+        data
+      });
+
+    } catch {
+
+      res.json({
+        data: []
       });
     }
   }
+);
 
-  return result;
-}
+/* =========================
+   大盤
+========================= */
 
-const server =
-  http.createServer(
-    async (req, res) => {
-      try {
-        const url =
-          new URL(
-            req.url,
-            "http://localhost"
-          );
+app.get(
+  '/api/market',
+  async (req, res) => {
 
-        const path =
-          url.pathname;
+    const symbols = [
+      '^TWII',
+      '^GSPC',
+      '^IXIC',
+      '^DJI'
+    ];
 
-        if (
-          req.method ===
-          "OPTIONS"
-        ) {
-          res.writeHead(
-            204,
-            {
-              "Access-Control-Allow-Origin":
-                "*",
-              "Access-Control-Allow-Headers":
-                "Content-Type"
-            }
-          );
+    const data =
+      await getQuotes(
+        symbols
+      );
 
-          return res.end();
-        }
+    res.json({
+      data
+    });
+  }
+);
 
-        if (
-          path ===
-          "/api/status"
-        ) {
-          return send(
-            res,
-            200,
-            {
-              server:
-                "IAN STOCK API",
+/* =========================
+   法人資料
+========================= */
 
-              version:
-                "15.0.0",
+app.get(
+  '/api/institutional/:symbol',
+  async (req, res) => {
 
-              status:
-                "ONLINE",
+    res.json({
 
-              twse:
-                "AVAILABLE",
+      symbol:
+        normSymbol(
+          req.params.symbol
+        ),
 
-              yahooFinance:
-                "AVAILABLE",
+      date: null,
 
-              alphaVantageConfigured:
-                !!ALPHA
-            }
-          );
-        }
+      foreignBuy: null,
+      foreignSell: null,
 
-        if (
-          path ===
-          "/api/market"
-        ) {
-          return send(
-            res,
-            200,
-            {
-              data:
-                await getMarket()
-            }
-          );
-        }
+      trustBuy: null,
+      trustSell: null,
 
-        if (
-          path ===
-          "/api/search"
-        ) {
-          return send(
-            res,
-            200,
-            {
-              data:
-                await searchStocks(
-                  url.searchParams.get(
-                    "q"
-                  )
-                )
-            }
-          );
-        }
+      dealerBuy: null,
+      dealerSell: null,
 
-        if (
-          path ===
-          "/api/quotes"
-        ) {
-          const symbols =
-            (
-              url.searchParams.get(
-                "symbols"
-              ) ||
-              "2330,2317,2454,NVDA,AAPL,MSFT"
-            )
-              .split(",")
-              .map(norm)
-              .filter(Boolean);
+      source:
+        'DATA SOURCE N/A'
+    });
+  }
+);
 
-          const result = [];
+/* =========================
+   網頁
+========================= */
 
-          for (
-            const symbol
-            of symbols
-          ) {
-            try {
-              result.push(
-                await getQuote(
-                  symbol
-                )
-              );
-            } catch {
-              result.push({
-                symbol,
+app.use(
+  express.static(
+    path.join(
+      __dirname,
+      'public'
+    )
+  )
+);
 
-                name:
-                  TW_NAMES[
-                    symbol
-                  ] ||
-                  symbol,
+app.get(
+  '*',
+  (req, res) => {
 
-                market:
-                  isUS(symbol)
-                    ? "US"
-                    : "TW",
+    res.sendFile(
+      path.join(
+        __dirname,
+        'public',
+        'index.html'
+      )
+    );
 
-                price: null,
+  }
+);
 
-                source:
-                  "unavailable"
-              });
-            }
-          }
-
-          return send(
-            res,
-            200,
-            result
-          );
-        }
-
-        const match =
-          path.match(
-            /^\/api\/(quote|history|analysis|stock|institutional)\/([^/]+)$/
-          );
-
-        if (match) {
-          const type =
-            match[1];
-
-          const symbol =
-            norm(
-              decodeURIComponent(
-                match[2]
-              )
-            );
-
-          if (
-            type ===
-            "quote"
-          ) {
-            return send(
-              res,
-              200,
-              await getQuote(
-                symbol
-              )
-            );
-          }
-
-          if (
-            type ===
-            "history"
-          ) {
-            return send(
-              res,
-              200,
-              {
-                symbol,
-
-                data:
-                  await getHistory(
-                    symbol,
-                    url.searchParams.get(
-                      "range"
-                    ) ||
-                    "6mo"
-                  )
-              }
-            );
-          }
-
-          if (
-            type ===
-            "institutional"
-          ) {
-            return send(
-              res,
-              200,
-              await getInstitutional(
-                symbol
-              )
-            );
-          }
-
-          const stock =
-            await getStock(
-              symbol
-            );
-
-          if (
-            type ===
-            "analysis"
-          ) {
-            return send(
-              res,
-              200,
-              stock.analysis
-            );
-          }
-
-          return send(
-            res,
-            200,
-            stock
-          );
-        }
-
-        return send(
-          res,
-          404,
-          {
-            error:
-              "Not found"
-          }
-        );
-      } catch (error) {
-        console.error(error);
-
-        return send(
-          res,
-          500,
-          {
-            error:
-              error.message ||
-              "Server error"
-          }
-        );
-      }
-    }
-  );
-
-server.listen(
+app.listen(
   PORT,
   () => {
+
     console.log(
-      `IAN STOCK API running on port ${PORT}`
+      'IAN STOCK API 11.0.0 listening on ' +
+      PORT
     );
+
   }
 );
