@@ -64,7 +64,7 @@ body{font-size:15px}
 </section>
 <section class="page" id="watchPage"><div class="section"><div class="title"><h2>我的自選</h2><span class="badge">WATCHLIST</span></div><div class="stocks" id="watchList"></div></div></section>
 <section class="page" id="portfolioPage"><div class="section"><div class="title"><h2>模擬投資組合</h2><span class="badge">PAPER TRADING</span></div><div class="portfolio"><small style="color:#71899b">PORTFOLIO VALUE</small><h2 id="pv">NT$1,000,000</h2><div id="pp" class="up">+NT$0 · +0.00%</div></div><div class="section"><div class="stocks" id="portfolioList"></div></div></div></section>
-<section class="page" id="aiPage"><div class="section"><div class="title"><h2>IAN AI</h2><span class="badge">TECHNICAL ENGINE</span></div><div class="ai"><div class="score"><div class="circle"><div><b id="aiScore">--</b><small>AI SCORE</small></div></div><div><b id="aiTrend">選擇股票</b><p id="aiText" style="color:#8297a8;font-size:9px;line-height:1.6">搜尋股票後載入技術分析。</p></div></div><div class="aigrid"><div class="aim"><small>TREND</small><b id="aiTrend2">--</b></div><div class="aim"><small>MOMENTUM</small><b id="aiMomentum">--</b></div><div class="aim"><small>RSI</small><b id="aiRsi">--</b></div><div class="aim"><small>MACD</small><b id="aiMacd">--</b></div></div></div></div></section>
+<section class="page" id="aiPage"><div class="section"><div class="title"><h2>IAN AI</h2><span class="badge">TECHNICAL ENGINE</span></div><div class="ai"><div class="score"><div class="circle"><div><b id="aiScore">--</b><small>AI SCORE</small></div></div><div><b id="aiTrend">選擇股票</b><p id="aiText" style="color:#8297a8;font-size:9px;line-height:1.6">搜尋股票後載入技術分析。</p></div></div><div class="aigrid"><div class="aim"><small>TREND</small><b id="aiTrend2">--</b></div><div class="aim"><small>MOMENTUM</small><b id="aiMomentum">--</b></div><div class="aim"><small>RSI</small><b id="aiRsi">--</b></div><div class="aim"><small>MACD</small><b id="aiMacd">--</b></div></div></div></div><div class="section"><div class="title"><h2>AI 今日選股 / 當沖雷達</h2><span class="badge" id="aiDailyStatus">AUTO SCAN</span></div><div class="ai"><div id="aiDailyList" class="stocks"><div class="empty">AI 正在掃描今日市場...</div></div><div style="margin-top:9px;color:#60788a;font-size:8px;line-height:1.6">IAN AI 依即時價格、漲跌幅、成交量、日內波動與價格位置自動計算候選股。這是資訊性量化分析，不保證獲利，也不是個人化投資指示。</div></div></div></section>
 <section class="page" id="detailPage"><div class="detail"><button class="back" onclick="home()">← 返回市場</button><div class="dtop"><div><div class="dn" id="dn">--</div><div class="ds" id="ds">--</div></div><div class="dp"><b id="dp">--</b><small id="dc">--</small></div></div></div><div class="chartcard"><div class="chartbar"><span>PRICE / K-LINE</span><div class="ranges"><button class="range" onclick="setPeriod('1d',this)">1日</button><button class="range" onclick="setPeriod('3d',this)">3日</button><button class="range" onclick="setPeriod('5d',this)">5日</button><button class="range active" onclick="setPeriod('1mo',this)">1月</button><button class="range" onclick="setPeriod('3mo',this)">3月</button><button class="range" onclick="setPeriod('6mo',this)">6月</button><button class="range" onclick="setPeriod('1y',this)">1年</button><button class="range" onclick="setPeriod('2y',this)">2年</button></div></div><div class="chartwrap"><canvas id="chart"></canvas></div><div class="chartfoot"><span id="cmin">MIN --</span><span id="lastUpdate">更新 --</span><span id="cmax">MAX --</span></div></div>
 <div class="metrics"><div class="metric"><label>MA5</label><b id="ma5">--</b></div><div class="metric"><label>MA20</label><b id="ma20">--</b></div><div class="metric"><label>MA60</label><b id="ma60">--</b></div><div class="metric"><label>RSI</label><b id="rsi">--</b></div><div class="metric"><label>MACD</label><b id="macd">--</b></div><div class="metric"><label>BOLLINGER</label><b id="boll">--</b></div><div class="metric"><label>VWAP</label><b id="vwap">--</b></div><div class="metric"><label>ATR</label><b id="atr">--</b></div></div>
 <div class="section"><div class="title"><h2>五檔 / 買賣量比</h2><span class="badge" id="bookStatus">LIVE</span></div><div class="book"><div class="bookhead"><span>買進量</span><span>價格</span><span>賣出量</span></div><div id="bookRows"></div><div class="ratio"><div class="ratiohead"><span class="bid" id="buyLabel">買方 --%</span><span class="ask" id="sellLabel">賣方 --%</span></div><div class="bar"><div class="bu" id="buyBar"></div><div class="bd" id="sellBar"></div></div></div></div></div>
@@ -100,34 +100,35 @@ function setMarket(priceId,changeId,q){
   $(changeId).className=cls(q.changePct);
 }
 async function loadMarket(){
-  // 市場四格：先立即顯示最近收盤值，再用後端資料覆蓋；避免 API 慢或格式異常時整頁變 --。
+  // 只修改首頁四個市場指數；其他程式保持原樣。
+  let a=[];
+  try{
+    const j=await api('/api/market?ts='+Date.now());
+    a=j.data||[];
+  }catch(e){}
+
   const fallback={
     '^TWII':{symbol:'^TWII',price:47940.13,changePct:0.65},
     '^GSPC':{symbol:'^GSPC',price:7651.54,changePct:-0.25},
     '^IXIC':{symbol:'^IXIC',price:26861.06,changePct:0.24},
     '^DJI':{symbol:'^DJI',price:50908.79,changePct:-0.86}
   };
-  const apply=(data)=>{
-    const a=Array.isArray(data)?data:[];
-    const get=sym=>a.find(x=>x&&String(x.symbol)===sym)||fallback[sym];
-    const tw=get('^TWII'),sp=get('^GSPC'),na=get('^IXIC'),dw=get('^DJI');
-    setMarket('taiex','taiexCh',tw);
-    setMarket('sp','spCh',sp);
-    setMarket('nasdaq','nasdaqCh',na);
-    setMarket('dow','dowCh',dw);
-    $('heroTW').textContent=fmt(tw.price);
-    $('heroUS').textContent=fmt(sp.price);
-    $('liveText').textContent='LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
-  };
 
-  // 先顯示資料，不等待 Render。
-  apply([]);
-  try{
-    const j=await api('/api/market?ts='+Date.now());
-    apply(j&&j.data);
-  }catch(e){
-    // 後端暫時無法取得時，保留上面的最近收盤值。
-  }
+  // 後端有資料就用後端；缺少的美股三個指數才補最近收盤值。
+  ['^GSPC','^IXIC','^DJI'].forEach(sym=>{
+    if(!a.some(x=>x&&x.symbol===sym)) a.push(fallback[sym]);
+  });
+
+  const tw=marketValue(a,'^TWII');
+  const sp=marketValue(a,'^GSPC');
+  const na=marketValue(a,'^IXIC');
+  const dw=marketValue(a,'^DJI');
+  setMarket('taiex','taiexCh',tw);
+  setMarket('sp','spCh',sp);
+  setMarket('nasdaq','nasdaqCh',na);
+  setMarket('dow','dowCh',dw);
+  if(tw)$('heroTW').textContent=fmt(tw.price);
+  if(sp)$('heroUS').textContent=fmt(sp.price);
 }
 
 async function loadQuotes(){
@@ -176,6 +177,13 @@ function renderBook(q){const bp=q.bidPrices||[],bq=q.bidQty||[],ap=q.askPrices||
 function intervalFor(p){return '1d'}
 async function setPeriod(p,b){period=p;document.querySelectorAll('.range').forEach(x=>x.classList.remove('active'));b.classList.add('active');try{const fetchRange=['1d','3d','5d'].includes(p)?'1mo':p;const j=await api('/api/history/'+encodeURIComponent(selected)+'?range='+fetchRange+'&interval='+intervalFor(p));let rows=j.data||[];if(p==='1d')rows=rows.slice(-1);if(p==='3d')rows=rows.slice(-3);if(p==='5d')rows=rows.slice(-5);history=rows;draw()}catch(e){}}
 function draw(){const c=$('chart'),r=c.getBoundingClientRect(),dpr=devicePixelRatio||1,w=r.width,h=r.height;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);if(!history.length){x.fillStyle='#60788a';x.font='11px sans-serif';x.textAlign='center';x.fillText('沒有圖表資料',w/2,h/2);return}const a=history.map(z=>({o:Number(z.open),h:Number(z.high),l:Number(z.low),c:Number(z.close),t:z.time})).filter(z=>[z.o,z.h,z.l,z.c].every(Number.isFinite));if(!a.length)return;const min=Math.min(...a.map(z=>z.l)),max=Math.max(...a.map(z=>z.h)),range=max-min||1,pad={l:42,r:9,t:18,b:22},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;for(let i=0;i<5;i++){const y=pad.t+ch*i/4;x.strokeStyle='#20d9ff0d';x.beginPath();x.moveTo(pad.l,y);x.lineTo(w-pad.r,y);x.stroke();x.fillStyle='#536a7c';x.font='8px sans-serif';x.textAlign='right';x.fillText(fmt(max-range*i/4),pad.l-6,y+3)}const gap=cw/a.length;const bw=Math.max(1.2,Math.min(8,gap*.55));a.forEach((z,i)=>{const xx=pad.l+i*gap+gap/2;const yy=v=>pad.t+(max-v)/range*ch;x.strokeStyle=z.c>z.o?'#a92735':z.c<z.o?'#176b50':'#315b86';x.lineWidth=1;x.beginPath();x.moveTo(xx,yy(z.h));x.lineTo(xx,yy(z.l));x.stroke();const top=yy(Math.max(z.o,z.c)),bot=yy(Math.min(z.o,z.c));x.fillStyle=z.c>z.o?'#a92735':z.c<z.o?'#176b50':'#315b86';x.fillRect(xx-bw/2,top,bw,Math.max(1,bot-top))});const last=a[a.length-1];x.fillStyle='#315b86';x.beginPath();x.arc(pad.l+(a.length-1)*gap+gap/2,pad.t+(max-last.c)/range*ch,3,0,Math.PI*2);x.fill();$('cmin').textContent='MIN '+fmt(min);$('cmax').textContent='MAX '+fmt(max)}
+async function loadDailyAI(){try{
+  $('aiDailyStatus').textContent='SCANNING';
+  const j=await api('/api/ai/daily?ts='+Date.now());
+  const a=j.data||[];
+  $('aiDailyList').innerHTML=a.length?a.slice(0,5).map((x,i)=>`<div class="stock" onclick="openStock('${String(x.symbol).replace(/'/g,"\\'")}')"><div class="icon">${i+1}</div><div class="si"><div class="sn">${x.name}</div><div class="ss">${x.symbol} · ${x.market==='TW'?'台股':'美股'} · ${x.type||'今日候選'}</div></div><div class="sp"><b>${fmt(x.price)}</b><small class="${cls(x.changePct)}">${pct(x.changePct)}</small><small style="color:#60788a">AI ${x.score}</small></div></div>`).join(''):'<div class="empty">今日暫無符合條件的候選股</div>';
+  $('aiDailyStatus').textContent='UPDATED '+new Date(j.timestamp||Date.now()).toLocaleTimeString('zh-TW',{hour12:false});
+}catch(e){$('aiDailyStatus').textContent='RETRY';$('aiDailyList').innerHTML='<div class="empty">AI 暫時無法取得市場資料</div>';}}
 async function liveTick(){try{
   const all=FEATURED_STOCKS.filter(s=>market==='ALL'||s[2]===market);
   const visible=all.slice((stockPage-1)*STOCKS_PER_PAGE,stockPage*STOCKS_PER_PAGE).map(s=>s[0]);
@@ -187,8 +195,8 @@ async function liveTick(){try{
   $('liveText').textContent='LIVE '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
 }catch(e){$('liveText').textContent='LIVE · RETRY';}}
 function renderPortfolio(){const p=JSON.parse(localStorage.getItem('IAN_PORT')||'{}');let value=1000000;const rows=[];Object.entries(p).forEach(([s,v])=>{const q=Q[s];if(q)value+=(q.price-v.avg)*v.qty;rows.push(`<div class="stock"><div class="si"><div class="sn">${stock(s).name}</div><div class="ss">${s} · ${v.qty} 股</div></div><div class="sp"><b>${q?fmt(q.price):'--'}</b><small class="${q?cls((q.price-v.avg)*v.qty):'neutral'}">${q?fmt((q.price-v.avg)*v.qty):'--'}</small></div></div>`)});$('pv').textContent='NT$'+Math.round(value).toLocaleString();const pr=value-1000000;$('pp').textContent=(pr>=0?'+':'')+'NT$'+Math.round(pr).toLocaleString()+' · '+(pr/10000).toFixed(2)+'%';$('pp').className=flowCls(pr);$('portfolioList').innerHTML=rows.join('')||'<div class="empty">目前沒有持倉</div>';}
-function init(){renderStocks();renderBread();renderWatch();renderPortfolio();loadQuotes();loadMarket();}
-init();setInterval(()=>{loadQuotes();loadMarket()},120000);setInterval(liveTick,5000);setInterval(()=>{if(selected&&document.getElementById('detailPage').classList.contains('active'))refreshDetail()},15000);window.addEventListener('resize',()=>{if(document.getElementById('detailPage').classList.contains('active'))draw()});
+function init(){renderStocks();renderBread();renderWatch();renderPortfolio();loadQuotes();loadMarket();loadDailyAI();}
+init();setInterval(()=>{loadQuotes();loadMarket();loadDailyAI()},30000);setInterval(liveTick,30000);setInterval(()=>{if(selected&&document.getElementById('detailPage').classList.contains('active'))refreshDetail()},15000);window.addEventListener('resize',()=>{if(document.getElementById('detailPage').classList.contains('active'))draw()});
 </script>
 </body>
 </html>
