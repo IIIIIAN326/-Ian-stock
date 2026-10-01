@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
+
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
@@ -11,9 +12,12 @@ const ALPHA_KEY = process.env.ALPHA_VANTAGE_KEY || '';
 
 const CACHE = new Map();
 const HISTORY_CACHE = new Map();
-const TW_MARKET_CACHE = { t: 0, v: [] };
 
-const TTL = 30 * 1000;
+const TW_MARKET_CACHE = { t: 0, v: [] };
+const TW_REALTIME_CACHE = { t: 0, v: [] };
+
+const REALTIME_TTL = 25000;
+const TTL = 25 * 1000;
 const HISTORY_TTL = 5 * 60 * 1000;
 
 const NAME = {
@@ -32,6 +36,7 @@ const NAME = {
   '2881':'富邦金',
   '2912':'統一超',
   '3035':'智原',
+
   'NVDA':'NVIDIA',
   'AAPL':'Apple',
   'MSFT':'Microsoft',
@@ -60,7 +65,7 @@ async function fetchJSON(url, ms = 10000) {
     const r = await fetch(url, {
       signal: c.signal,
       headers: {
-        'User-Agent': 'IAN-STOCK/13.0',
+        'User-Agent': 'IAN-STOCK/14.0',
         'Accept': 'application/json'
       }
     });
@@ -76,7 +81,9 @@ async function fetchJSON(url, ms = 10000) {
 }
 
 function num(v) {
-  if (v === null || v === undefined || v === '') return null;
+  if (v === null || v === undefined || v === '') {
+    return null;
+  }
 
   const n = Number(
     String(v)
@@ -88,14 +95,17 @@ function num(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+
 /* =========================
-   Yahoo Quote
+   Yahoo Finance
 ========================= */
 
 function quoteFromYahoo(s, j) {
   const m = j?.chart?.result?.[0]?.meta;
 
-  if (!m) return null;
+  if (!m) {
+    return null;
+  }
 
   const price = Number(
     m.regularMarketPrice ?? m.previousClose
@@ -105,7 +115,9 @@ function quoteFromYahoo(s, j) {
     m.chartPreviousClose ?? m.previousClose
   );
 
-  if (!Number.isFinite(price)) return null;
+  if (!Number.isFinite(price)) {
+    return null;
+  }
 
   return {
     symbol: s,
@@ -137,7 +149,10 @@ async function yahooQuote(s) {
   const key = 'q:' + s;
   const old = CACHE.get(key);
 
-  if (old && Date.now() - old.t < TTL) {
+  if (
+    old &&
+    Date.now() - old.t < TTL
+  ) {
     return old.v;
   }
 
@@ -159,12 +174,16 @@ async function yahooQuote(s) {
   return q;
 }
 
+
 /* =========================
    Alpha Vantage
 ========================= */
 
 async function alphaQuote(s) {
-  if (!ALPHA_KEY || /^\d{4}$/.test(s)) {
+  if (
+    !ALPHA_KEY ||
+    /^\d{4}$/.test(s)
+  ) {
     return null;
   }
 
@@ -193,7 +212,8 @@ async function alphaQuote(s) {
       name: NAME[s] || s,
       market: 'US',
       price,
-      changePct: Number.isFinite(pct) ? pct : null,
+      changePct:
+        Number.isFinite(pct) ? pct : null,
       previousClose:
         Number(q['08. previous close']) || null,
       currency: 'USD',
@@ -201,10 +221,12 @@ async function alphaQuote(s) {
       volume:
         Number(q['06. volume']) || null
     };
+
   } catch {
     return null;
   }
 }
+
 
 /* =========================
    TWSE
@@ -220,9 +242,13 @@ async function twseQuotes() {
     try {
       const r = await fetchJSON(u, 10000);
 
-      if (Array.isArray(r) && r.length) {
+      if (
+        Array.isArray(r) &&
+        r.length
+      ) {
         return r;
       }
+
     } catch {}
   }
 
@@ -263,6 +289,7 @@ function normalizeTwse(row) {
 
     price,
     previousClose: previous,
+
     change,
 
     changePct:
@@ -273,6 +300,7 @@ function normalizeTwse(row) {
     open: num(row.OpeningPrice),
     high: num(row.HighestPrice),
     low: num(row.LowestPrice),
+
     volume: num(row.TradeVolume),
 
     currency: 'TWD',
@@ -280,14 +308,16 @@ function normalizeTwse(row) {
   };
 }
 
+
 /* =========================
    TPEx
 ========================= */
 
 function normalizeTpex(row) {
-  const symbol = normSymbol(
-    row.SecuritiesCompanyCode
-  );
+  const symbol =
+    normSymbol(
+      row.SecuritiesCompanyCode
+    );
 
   if (!/^\d{4,6}$/.test(symbol)) {
     return null;
@@ -321,6 +351,7 @@ function normalizeTpex(row) {
 
     price,
     previousClose: previous,
+
     change,
 
     changePct:
@@ -331,12 +362,131 @@ function normalizeTpex(row) {
     open: num(row.Open),
     high: num(row.High),
     low: num(row.Low),
+
     volume: num(row.TradingShares),
 
     currency: 'TWD',
     timestamp: Date.now()
   };
 }
+
+
+/* =========================
+   TWSE 即時行情
+========================= */
+
+async function twseMisRealtime(symbols) {
+  const out = [];
+
+  const uniq = [
+    ...new Set(
+      symbols.filter(
+        s => /^\d{4}$/.test(s)
+      )
+    )
+  ];
+
+  for (
+    let i = 0;
+    i < uniq.length;
+    i += 80
+  ) {
+
+    const chunk =
+      uniq.slice(i, i + 80);
+
+    const ex =
+      chunk
+        .map(
+          s => 'tse_' + s + '.tw'
+        )
+        .join('|');
+
+    try {
+
+      const j = await fetchJSON(
+        'https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=' +
+        encodeURIComponent(ex) +
+        '&json=1&delay=0&_=' +
+        Date.now(),
+        12000
+      );
+
+      for (
+        const z of
+        (j?.msgArray || [])
+      ) {
+
+        const symbol =
+          normSymbol(z.c);
+
+        const price =
+          num(z.z);
+
+        const prev =
+          num(z.y);
+
+        if (
+          !/^\d{4}$/.test(symbol) ||
+          price === null
+        ) {
+          continue;
+        }
+
+        out.push({
+
+          symbol,
+
+          name:
+            z.n ||
+            NAME[symbol] ||
+            symbol,
+
+          market: 'TW',
+          exchange: 'TWSE',
+
+          price,
+
+          previousClose: prev,
+
+          change:
+            prev !== null
+              ? price - prev
+              : null,
+
+          changePct:
+            prev
+              ? ((price - prev) / prev) * 100
+              : 0,
+
+          open: num(z.o),
+          high: num(z.h),
+          low: num(z.l),
+
+          volume:
+            num(z.v) * 1000 || null,
+
+          currency: 'TWD',
+
+          timestamp: Date.now(),
+
+          source: 'TWSE MIS'
+        });
+      }
+
+    } catch {}
+
+    if (
+      i + 80 <
+      uniq.length
+    ) {
+      await sleep(80);
+    }
+  }
+
+  return out;
+}
+
 
 /* =========================
    全台股
@@ -347,42 +497,48 @@ async function getAllTaiwanStocks(force = false) {
   if (
     !force &&
     TW_MARKET_CACHE.v.length &&
-    Date.now() - TW_MARKET_CACHE.t < 60000
+    Date.now() -
+      TW_MARKET_CACHE.t <
+      25000
   ) {
     return TW_MARKET_CACHE.v;
   }
 
-  const [twse, tpex] = await Promise.all([
+  const [twse, tpex] =
+    await Promise.all([
 
-    fetchJSON(
-      'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',
-      15000
-    ).catch(() => []),
+      fetchJSON(
+        'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',
+        15000
+      ).catch(() => []),
 
-    fetchJSON(
-      'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes',
-      15000
-    )
-      .catch(() => [])
-      .then(x =>
-        Array.isArray(x) && x.length
-          ? x
-          : fetchJSON(
-              'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes',
-              15000
-            ).catch(() => [])
+      fetchJSON(
+        'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes',
+        15000
       )
-
-  ]);
+        .catch(() => [])
+        .then(x =>
+          Array.isArray(x) &&
+          x.length
+            ? x
+            : fetchJSON(
+                'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes',
+                15000
+              ).catch(() => [])
+        )
+    ]);
 
   const map = new Map();
 
   for (
-    const row of Array.isArray(twse)
+    const row of
+    Array.isArray(twse)
       ? twse
       : []
   ) {
-    const q = normalizeTwse(row);
+
+    const q =
+      normalizeTwse(row);
 
     if (q) {
       map.set(q.symbol, q);
@@ -390,24 +546,91 @@ async function getAllTaiwanStocks(force = false) {
   }
 
   for (
-    const row of Array.isArray(tpex)
+    const row of
+    Array.isArray(tpex)
       ? tpex
       : []
   ) {
-    const q = normalizeTpex(row);
+
+    const q =
+      normalizeTpex(row);
 
     if (q) {
       map.set(q.symbol, q);
     }
   }
 
-  const out = [...map.values()];
+  const out =
+    [...map.values()];
 
-  TW_MARKET_CACHE.t = Date.now();
-  TW_MARKET_CACHE.v = out;
+  TW_MARKET_CACHE.t =
+    Date.now();
+
+  TW_MARKET_CACHE.v =
+    out;
 
   return out;
 }
+
+
+/* =========================
+   台股即時資料
+========================= */
+
+async function getRealtimeTaiwanStocks(
+  force = false
+) {
+
+  if (
+    !force &&
+    TW_REALTIME_CACHE.v.length &&
+    Date.now() -
+      TW_REALTIME_CACHE.t <
+      REALTIME_TTL
+  ) {
+    return TW_REALTIME_CACHE.v;
+  }
+
+  const base =
+    await getAllTaiwanStocks(false);
+
+  const twseSymbols =
+    base
+      .filter(
+        x => x.exchange === 'TWSE'
+      )
+      .map(
+        x => x.symbol
+      );
+
+  const realtime =
+    await twseMisRealtime(
+      twseSymbols
+    );
+
+  const map =
+    new Map(
+      base.map(
+        x => [x.symbol, x]
+      )
+    );
+
+  realtime.forEach(
+    x => map.set(x.symbol, x)
+  );
+
+  const out =
+    [...map.values()];
+
+  TW_REALTIME_CACHE.t =
+    Date.now();
+
+  TW_REALTIME_CACHE.v =
+    out;
+
+  return out;
+}
+
 
 /* =========================
    單一股票
@@ -418,14 +641,18 @@ async function getQuote(s) {
   s = normSymbol(s);
 
   try {
-    const q = await yahooQuote(s);
+
+    const q =
+      await yahooQuote(s);
 
     if (q) {
       return q;
     }
+
   } catch {}
 
-  const a = await alphaQuote(s);
+  const a =
+    await alphaQuote(s);
 
   if (a) {
     return a;
@@ -433,30 +660,49 @@ async function getQuote(s) {
 
   if (/^\d{4}$/.test(s)) {
 
-    const arr = await twseQuotes();
+    const arr =
+      await twseQuotes();
 
-    const z = arr.find(
-      x => String(x.Code) === s
-    );
+    const z =
+      arr.find(
+        x =>
+          String(x.Code) === s
+      );
 
     if (z) {
 
-      const price = Number(
-        String(z.ClosingPrice ?? '')
-          .replace(/,/g, '')
-      );
+      const price =
+        Number(
+          String(
+            z.ClosingPrice ?? ''
+          ).replace(/,/g, '')
+        );
 
-      const change = Number(
-        String(z.Change ?? '')
-          .replace(/,/g, '')
-      );
+      const change =
+        Number(
+          String(
+            z.Change ?? ''
+          ).replace(/,/g, '')
+        );
 
-      if (Number.isFinite(price)) {
+      if (
+        Number.isFinite(price)
+      ) {
+
+        const previous =
+          price - change;
 
         return {
+
           symbol: s,
-          name: z.Name || NAME[s] || s,
+
+          name:
+            z.Name ||
+            NAME[s] ||
+            s,
+
           market: 'TW',
+
           price,
 
           change:
@@ -465,36 +711,40 @@ async function getQuote(s) {
               : null,
 
           changePct:
-            Number.isFinite(price - change) &&
-            price - change
-              ? change / (price - change) * 100
+            previous
+              ? (change / previous) * 100
               : 0,
 
           open:
             Number(
-              String(z.OpeningPrice ?? '')
-                .replace(/,/g, '')
+              String(
+                z.OpeningPrice ?? ''
+              ).replace(/,/g, '')
             ) || null,
 
           high:
             Number(
-              String(z.HighestPrice ?? '')
-                .replace(/,/g, '')
+              String(
+                z.HighestPrice ?? ''
+              ).replace(/,/g, '')
             ) || null,
 
           low:
             Number(
-              String(z.LowestPrice ?? '')
-                .replace(/,/g, '')
+              String(
+                z.LowestPrice ?? ''
+              ).replace(/,/g, '')
             ) || null,
 
           volume:
             Number(
-              String(z.TradeVolume ?? '')
-                .replace(/,/g, '')
+              String(
+                z.TradeVolume ?? ''
+              ).replace(/,/g, '')
             ) || null,
 
           currency: 'TWD',
+
           timestamp: Date.now()
         };
       }
@@ -504,13 +754,19 @@ async function getQuote(s) {
   return null;
 }
 
+
 /* =========================
-   批量
+   多股票
 ========================= */
 
-async function mapLimit(items, limit, fn) {
+async function mapLimit(
+  items,
+  limit,
+  fn
+) {
 
-  const out = new Array(items.length);
+  const out =
+    new Array(items.length);
 
   let next = 0;
 
@@ -520,12 +776,18 @@ async function mapLimit(items, limit, fn) {
 
       const i = next++;
 
-      if (i >= items.length) {
+      if (
+        i >= items.length
+      ) {
         return;
       }
 
       try {
-        out[i] = await fn(items[i], i);
+        out[i] =
+          await fn(
+            items[i],
+            i
+          );
       } catch {
         out[i] = null;
       }
@@ -538,7 +800,10 @@ async function mapLimit(items, limit, fn) {
     Array.from(
       {
         length:
-          Math.min(limit, items.length)
+          Math.min(
+            limit,
+            items.length
+          )
       },
       worker
     )
@@ -547,24 +812,29 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
-async function getQuotes(symbols) {
+async function getQuotes(
+  symbols
+) {
 
-  const clean = [
-    ...new Set(
-      symbols
-        .map(normSymbol)
-        .filter(Boolean)
-    )
-  ].slice(0, 120);
+  const clean =
+    [
+      ...new Set(
+        symbols
+          .map(normSymbol)
+          .filter(Boolean)
+      )
+    ].slice(0, 120);
 
-  const out = await mapLimit(
-    clean,
-    8,
-    getQuote
-  );
+  const out =
+    await mapLimit(
+      clean,
+      8,
+      getQuote
+    );
 
   return out.filter(Boolean);
 }
+
 
 /* =========================
    歷史資料
@@ -586,20 +856,23 @@ async function history(
 
   if (
     old &&
-    Date.now() - old.t < HISTORY_TTL
+    Date.now() -
+      old.t <
+      HISTORY_TTL
   ) {
     return old.v;
   }
 
-  const j = await fetchJSON(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-      yahooSymbol(s)
-    )}?range=${encodeURIComponent(
-      range
-    )}&interval=${encodeURIComponent(
-      interval
-    )}&events=div%2Csplits`
-  );
+  const j =
+    await fetchJSON(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+        yahooSymbol(s)
+      )}?range=${encodeURIComponent(
+        range
+      )}&interval=${encodeURIComponent(
+        interval
+      )}&events=div%2Csplits`
+    );
 
   const r =
     j?.chart?.result?.[0];
@@ -611,40 +884,54 @@ async function history(
   }
 
   const q =
-    r.indicators?.quote?.[0] || {};
+    r.indicators?.quote?.[0] ||
+    {};
 
   const a = [];
 
   for (
     let i = 0;
-    i < (r.timestamp || []).length;
+    i <
+    (r.timestamp || []).length;
     i++
   ) {
 
     const close =
-      Number(q.close?.[i]);
+      Number(
+        q.close?.[i]
+      );
 
     if (
       Number.isFinite(close)
     ) {
 
       a.push({
+
         time:
-          r.timestamp[i] * 1000,
+          r.timestamp[i] *
+          1000,
 
         open:
-          Number(q.open?.[i]) || null,
+          Number(
+            q.open?.[i]
+          ) || null,
 
         high:
-          Number(q.high?.[i]) || null,
+          Number(
+            q.high?.[i]
+          ) || null,
 
         low:
-          Number(q.low?.[i]) || null,
+          Number(
+            q.low?.[i]
+          ) || null,
 
         close,
 
         volume:
-          Number(q.volume?.[i]) || 0
+          Number(
+            q.volume?.[i]
+          ) || 0
       });
     }
   }
@@ -660,28 +947,39 @@ async function history(
   return a;
 }
 
+
 /* =========================
    技術指標
 ========================= */
 
 function sma(v, n) {
-  return v.length < n
-    ? null
-    : v
-        .slice(-n)
-        .reduce(
-          (a, b) => a + b,
-          0
-        ) / n;
+
+  if (
+    v.length < n
+  ) {
+    return null;
+  }
+
+  return (
+    v
+      .slice(-n)
+      .reduce(
+        (a, b) => a + b,
+        0
+      ) / n
+  );
 }
 
 function emaSeries(v, n) {
 
-  if (v.length < n) {
+  if (
+    v.length < n
+  ) {
     return [];
   }
 
-  const k = 2 / (n + 1);
+  const k =
+    2 / (n + 1);
 
   let e =
     v
@@ -709,9 +1007,14 @@ function emaSeries(v, n) {
   return out;
 }
 
-function rsi(v, n = 14) {
+function rsi(
+  v,
+  n = 14
+) {
 
-  if (v.length <= n) {
+  if (
+    v.length <= n
+  ) {
     return null;
   }
 
@@ -766,9 +1069,15 @@ function rsi(v, n = 14) {
           (1 + ag / al);
 }
 
-function atr(a, n = 14) {
+function atr(
+  a,
+  n = 14
+) {
 
-  if (a.length < n + 1) {
+  if (
+    a.length <
+    n + 1
+  ) {
     return null;
   }
 
@@ -782,16 +1091,17 @@ function atr(a, n = 14) {
 
     tr.push(
       Math.max(
-        a[i].high - a[i].low,
+        a[i].high -
+          a[i].low,
 
         Math.abs(
           a[i].high -
-          a[i - 1].close
+            a[i - 1].close
         ),
 
         Math.abs(
           a[i].low -
-          a[i - 1].close
+            a[i - 1].close
         )
       )
     );
@@ -810,7 +1120,9 @@ function atr(a, n = 14) {
 function indicators(a) {
 
   const c =
-    a.map(x => x.close);
+    a.map(
+      x => x.close
+    );
 
   const v =
     a.map(
@@ -832,7 +1144,9 @@ function indicators(a) {
 
   const sd = n => {
 
-    if (c.length < n) {
+    if (
+      c.length < n
+    ) {
       return null;
     }
 
@@ -848,7 +1162,8 @@ function indicators(a) {
     return Math.sqrt(
       z.reduce(
         (x, y) =>
-          x + (y - m) ** 2,
+          x +
+          (y - m) ** 2,
         0
       ) / n
     );
@@ -862,21 +1177,28 @@ function indicators(a) {
 
   return {
 
-    MA5: sma(c, 5),
+    MA5:
+      sma(c, 5),
 
-    MA20: ma20,
+    MA20:
+      ma20,
 
-    MA60: sma(c, 60),
+    MA60:
+      sma(c, 60),
 
     EMA12:
-      e12.at(-1) || null,
+      e12.at(-1) ||
+      null,
 
     EMA26:
-      e26.at(-1) || null,
+      e26.at(-1) ||
+      null,
 
-    RSI: rsi(c),
+    RSI:
+      rsi(c),
 
-    MACD: macd,
+    MACD:
+      macd,
 
     Bollinger:
       ma20 != null &&
@@ -884,13 +1206,16 @@ function indicators(a) {
         ? {
             middle: ma20,
             upper:
-              ma20 + 2 * s20,
+              ma20 +
+              2 * s20,
             lower:
-              ma20 - 2 * s20
+              ma20 -
+              2 * s20
           }
         : null,
 
-    ATR: atr(a),
+    ATR:
+      atr(a),
 
     VWAP:
       a.length
@@ -909,7 +1234,8 @@ function indicators(a) {
           Math.max(
             1,
             v.reduce(
-              (x, y) => x + y,
+              (x, y) =>
+                x + y,
               0
             )
           )
@@ -934,7 +1260,10 @@ function indicators(a) {
   };
 }
 
-function analysis(ind, last) {
+function analysis(
+  ind,
+  last
+) {
 
   let score = null;
   let trend = '資料不足';
@@ -942,32 +1271,48 @@ function analysis(ind, last) {
   let risk = '資料不足';
 
   if (
-    Number.isFinite(ind.RSI) &&
-    Number.isFinite(ind.MA20) &&
+    Number.isFinite(
+      ind.RSI
+    ) &&
+    Number.isFinite(
+      ind.MA20
+    ) &&
     Number.isFinite(last)
   ) {
 
     let s = 50;
 
-    if (last > ind.MA20) {
+    if (
+      last >
+      ind.MA20
+    ) {
       s += 10;
     }
 
-    if (ind.RSI > 55) {
+    if (
+      ind.RSI > 55
+    ) {
       s += 8;
     }
 
-    if (ind.RSI > 70) {
+    if (
+      ind.RSI > 70
+    ) {
       s -= 10;
     }
 
-    if (ind.RSI < 30) {
+    if (
+      ind.RSI < 30
+    ) {
       s += 5;
     }
 
     if (
-      Number.isFinite(ind.MA60) &&
-      last > ind.MA60
+      Number.isFinite(
+        ind.MA60
+      ) &&
+      last >
+        ind.MA60
     ) {
       s += 8;
     }
@@ -994,7 +1339,8 @@ function analysis(ind, last) {
           : '中性';
 
     risk =
-      ind.ATR && last
+      ind.ATR &&
+      last
         ? ind.ATR / last > 0.04
           ? '波動偏高'
           : '一般'
@@ -1002,12 +1348,15 @@ function analysis(ind, last) {
   }
 
   return {
+
     score,
     trend,
     momentum,
     risk,
+
     note:
-      'AI Score 為技術資料的資訊性摘要，不是投資建議。',
+      'AI Score 為技術資料的資訊性摘要，不是投資保證。',
+
     ...ind
   };
 }
@@ -1024,8 +1373,11 @@ async function stock(s) {
     indicators(h);
 
   return {
+
     quote: q,
+
     history: h,
+
     analysis:
       analysis(
         ind,
@@ -1034,19 +1386,22 @@ async function stock(s) {
   };
 }
 
+
 /* =========================
-   API
+   API STATUS
 ========================= */
 
 app.get(
   '/api/status',
-  (req, res) =>
+  (req, res) => {
+
     res.json({
+
       server:
         'IAN STOCK API',
 
       version:
-        '13.0.0',
+        '14.0.0',
 
       status:
         'ONLINE',
@@ -1063,21 +1418,44 @@ app.get(
       historyCacheEntries:
         HISTORY_CACHE.size,
 
+      realtimeStocksCached:
+        TW_REALTIME_CACHE
+          .v.length,
+
       endpoints: [
+
         '/api/quotes',
+
         '/api/quote/:symbol',
+
         '/api/history/:symbol',
+
         '/api/analysis/:symbol',
+
         '/api/stock/:symbol',
+
         '/api/search',
+
         '/api/market',
+
         '/api/tw-stocks',
+
         '/api/live',
+
+        '/api/ai/daily',
+
         '/api/institutional/:symbol',
+
         '/api/status'
       ]
-    })
+    });
+  }
 );
+
+
+/* =========================
+   QUOTE API
+========================= */
 
 app.get(
   '/api/quote/:symbol',
@@ -1091,6 +1469,7 @@ app.get(
         );
 
       if (!q) {
+
         return res
           .status(502)
           .json({
@@ -1123,12 +1502,14 @@ app.get(
       (
         req.query.symbols ||
         '2330,2317,2454,NVDA,AAPL,MSFT'
-      ).split(',');
+      )
+      .split(',');
 
     const data =
       await getQuotes(raw);
 
     res.json({
+
       data,
 
       requested:
@@ -1149,6 +1530,11 @@ app.get(
   }
 );
 
+
+/* =========================
+   HISTORY
+========================= */
+
 app.get(
   '/api/history/:symbol',
   async (req, res) => {
@@ -1165,10 +1551,12 @@ app.get(
         );
 
       res.json({
+
         symbol:
           normSymbol(
             req.params.symbol
           ),
+
         data
       });
 
@@ -1183,6 +1571,11 @@ app.get(
     }
   }
 );
+
+
+/* =========================
+   ANALYSIS
+========================= */
 
 app.get(
   '/api/analysis/:symbol',
@@ -1204,6 +1597,7 @@ app.get(
         indicators(h);
 
       res.json({
+
         symbol:
           normSymbol(
             req.params.symbol
@@ -1227,6 +1621,11 @@ app.get(
     }
   }
 );
+
+
+/* =========================
+   STOCK DETAIL
+========================= */
 
 app.get(
   '/api/stock/:symbol',
@@ -1252,8 +1651,9 @@ app.get(
   }
 );
 
+
 /* =========================
-   搜尋
+   SEARCH
 ========================= */
 
 app.get(
@@ -1274,9 +1674,7 @@ app.get(
     try {
 
       const tw =
-        await getAllTaiwanStocks(
-          false
-        );
+        await getRealtimeTaiwanStocks();
 
       const local =
         tw
@@ -1288,14 +1686,18 @@ app.get(
               x.name.includes(q)
           )
           .slice(0, 20)
-          .map(x => ({
-            symbol:
-              x.symbol,
-            name:
-              x.name,
-            market:
-              'TW'
-          }));
+          .map(
+            x => ({
+              symbol:
+                x.symbol,
+
+              name:
+                x.name,
+
+              market:
+                'TW'
+            })
+          );
 
       if (local.length) {
 
@@ -1315,25 +1717,29 @@ app.get(
         (j.quotes || [])
           .filter(
             x =>
-              ['EQUITY', 'ETF']
-                .includes(
-                  x.quoteType
-                )
+              [
+                'EQUITY',
+                'ETF'
+              ].includes(
+                x.quoteType
+              )
           )
-          .map(x => ({
-            symbol:
-              x.symbol,
+          .map(
+            x => ({
+              symbol:
+                x.symbol,
 
-            name:
-              x.longname ||
-              x.shortname ||
-              x.symbol,
+              name:
+                x.longname ||
+                x.shortname ||
+                x.symbol,
 
-            market:
-              x.exchange === 'TAI'
-                ? 'TW'
-                : 'US'
-          }));
+              market:
+                x.exchange === 'TAI'
+                  ? 'TW'
+                  : 'US'
+            })
+          );
 
       res.json({
         data
@@ -1348,8 +1754,9 @@ app.get(
   }
 );
 
+
 /* =========================
-   全台股 API
+   ALL TAIWAN STOCKS
 ========================= */
 
 app.get(
@@ -1359,9 +1766,13 @@ app.get(
     try {
 
       const data =
-        await getAllTaiwanStocks(
-          false
-        );
+        await getRealtimeTaiwanStocks();
+
+      TW_MARKET_CACHE.t =
+        Date.now();
+
+      TW_MARKET_CACHE.v =
+        data;
 
       res.json({
 
@@ -1392,6 +1803,7 @@ app.get(
   }
 );
 
+
 /* =========================
    LIVE
 ========================= */
@@ -1406,12 +1818,12 @@ app.get(
         String(
           req.query.symbols || ''
         )
-          .split(',')
-          .map(normSymbol)
-          .filter(Boolean);
+        .split(',')
+        .map(normSymbol)
+        .filter(Boolean);
 
       const tw =
-        await getAllTaiwanStocks(
+        await getRealtimeTaiwanStocks(
           false
         );
 
@@ -1427,18 +1839,22 @@ app.get(
 
       const selected =
         raw.filter(
-          x => /^\d{4}$/.test(x)
+          x =>
+            /^\d{4}$/.test(x)
         );
 
       const us =
         raw.filter(
-          x => !/^\d{4}$/.test(x)
+          x =>
+            !/^\d{4}$/.test(x)
         );
 
       const data = [
+
         ...selected
           .map(
-            x => twMap.get(x)
+            x =>
+              twMap.get(x)
           )
           .filter(Boolean),
 
@@ -1448,7 +1864,9 @@ app.get(
       ];
 
       res.json({
+
         data,
+
         timestamp:
           Date.now()
       });
@@ -1465,9 +1883,9 @@ app.get(
   }
 );
 
+
 /* =========================
    TAIEX
-   TWSE 官方資料
 ========================= */
 
 async function twseMarketIndex() {
@@ -1550,8 +1968,9 @@ async function twseMarketIndex() {
   }
 }
 
+
 /* =========================
-   Stooq 備援
+   STOOQ
 ========================= */
 
 async function stooqIndex(
@@ -1567,25 +1986,25 @@ async function stooqIndex(
         stooqSymbol
       )}&f=sd2t2ohlcvnp&h&e=csv`;
 
-    const r =
-      await fetch(
-        u,
-        {
-          headers: {
-            'User-Agent':
-              'IAN-STOCK/13.0',
-            'Accept':
-              'text/csv'
-          },
-          signal:
-            AbortSignal.timeout(
-              12000
-            )
-        }
-      );
-
     const raw =
-      await r.text();
+      await (
+        await fetch(
+          u,
+          {
+            headers: {
+              'User-Agent':
+                'IAN-STOCK/14.0',
+              'Accept':
+                'text/csv'
+            },
+
+            signal:
+              AbortSignal.timeout(
+                12000
+              )
+          }
+        )
+      ).text();
 
     const lines =
       raw
@@ -1593,7 +2012,9 @@ async function stooqIndex(
         .split(/\r?\n/)
         .filter(Boolean);
 
-    if (lines.length < 2) {
+    if (
+      lines.length < 2
+    ) {
       return null;
     }
 
@@ -1606,10 +2027,11 @@ async function stooqIndex(
     const o =
       Object.fromEntries(
         h.map(
-          (k, i) => [
-            k,
-            v[i]
-          ]
+          (k, i) =>
+            [
+              k,
+              v[i]
+            ]
         )
       );
 
@@ -1619,7 +2041,9 @@ async function stooqIndex(
     const prev =
       num(o.Prev);
 
-    if (price == null) {
+    if (
+      price == null
+    ) {
       return null;
     }
 
@@ -1639,8 +2063,7 @@ async function stooqIndex(
 
       changePct:
         prev
-          ? ((price - prev) /
-              prev) *
+          ? ((price - prev) / prev) *
             100
           : null,
 
@@ -1657,8 +2080,9 @@ async function stooqIndex(
   }
 }
 
+
 /* =========================
-   Yahoo 指數
+   Yahoo Index
 ========================= */
 
 async function yahooIndex(
@@ -1742,8 +2166,247 @@ async function yahooIndex(
   return null;
 }
 
+
 /* =========================
-   市場總覽
+   AI 今日選股
+========================= */
+
+function aiDailyScore(q) {
+
+  const ch =
+    Number(
+      q.changePct
+    ) || 0;
+
+  const range =
+    Number(q.high) -
+    Number(q.low);
+
+  const rangePct =
+    q.price
+      ? (range /
+          q.price) *
+        100
+      : 0;
+
+  const pos =
+    range > 0
+      ? (
+          (q.price -
+            Number(q.low)) /
+          range
+        )
+      : 0.5;
+
+  const vol =
+    Math.log10(
+      Math.max(
+        1,
+        Number(q.volume) || 0
+      )
+    );
+
+  const momentum =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        50 + ch * 9
+      )
+    );
+
+  const liquidity =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        (vol - 3) * 18
+      )
+    );
+
+  const volatility =
+    Math.max(
+      0,
+      Math.min(
+        100,
+        rangePct * 12
+      )
+    );
+
+  const position =
+    pos * 100;
+
+  const score =
+    Math.round(
+      momentum * 0.35 +
+      liquidity * 0.25 +
+      volatility * 0.15 +
+      position * 0.25
+    );
+
+  let type =
+    '今日候選';
+
+  if (
+    ch >= 1 &&
+    rangePct >= 2 &&
+    pos >= 0.55
+  ) {
+
+    type =
+      '當沖動能';
+
+  } else if (
+    ch <= -1 &&
+    rangePct >= 2 &&
+    pos <= 0.45
+  ) {
+
+    type =
+      '當沖反轉觀察';
+  }
+
+  const reasons = [];
+
+  if (
+    ch >= 1
+  ) {
+
+    reasons.push(
+      '漲幅動能'
+    );
+
+  } else if (
+    ch <= -1
+  ) {
+
+    reasons.push(
+      '跌幅波動'
+    );
+  }
+
+  if (
+    vol >= 6
+  ) {
+
+    reasons.push(
+      '成交量活躍'
+    );
+  }
+
+  if (
+    rangePct >= 2
+  ) {
+
+    reasons.push(
+      '日內波動明顯'
+    );
+  }
+
+  if (
+    pos >= 0.7
+  ) {
+
+    reasons.push(
+      '接近日內高位'
+    );
+
+  } else if (
+    pos <= 0.3
+  ) {
+
+    reasons.push(
+      '接近日內低位'
+    );
+  }
+
+  return {
+
+    ...q,
+
+    score,
+
+    type,
+
+    reason:
+      reasons
+        .slice(0, 3)
+        .join('、') ||
+      '價格與成交活躍度符合掃描條件'
+  };
+}
+
+
+/* =========================
+   AI API
+========================= */
+
+app.get(
+  '/api/ai/daily',
+  async (req, res) => {
+
+    try {
+
+      const all =
+        await getRealtimeTaiwanStocks();
+
+      const candidates =
+        all
+          .filter(
+            x =>
+              x.price != null &&
+              x.volume != null &&
+              x.volume > 0 &&
+              x.high != null &&
+              x.low != null
+          )
+          .map(
+            aiDailyScore
+          )
+          .filter(
+            x =>
+              x.score >= 55
+          )
+          .sort(
+            (a, b) =>
+              b.score -
+              a.score
+          )
+          .slice(0, 12);
+
+      res.json({
+
+        data:
+          candidates,
+
+        timestamp:
+          Date.now(),
+
+        source:
+          'IAN AI Quant Engine',
+
+        marketCount:
+          all.length,
+
+        disclaimer:
+          '資訊性量化分析，非保證或個人化投資建議'
+      });
+
+    } catch {
+
+      res
+        .status(502)
+        .json({
+          error:
+            'AI 今日掃描暫時無法取得'
+        });
+    }
+  }
+);
+
+
+/* =========================
+   MARKET
 ========================= */
 
 app.get(
@@ -1774,7 +2437,6 @@ app.get(
           '^DJI',
           'DOW JONES'
         )
-
       ]);
 
     const fallbacks =
@@ -1812,6 +2474,7 @@ app.get(
       ));
 
     const data = [
+
       tw,
 
       sp ||
@@ -1844,6 +2507,7 @@ app.get(
   }
 );
 
+
 /* =========================
    法人資料
 ========================= */
@@ -1859,26 +2523,16 @@ app.get(
           req.params.symbol
         ),
 
-      date:
-        null,
+      date: null,
 
-      foreignBuy:
-        null,
+      foreignBuy: null,
+      foreignSell: null,
 
-      foreignSell:
-        null,
+      trustBuy: null,
+      trustSell: null,
 
-      trustBuy:
-        null,
-
-      trustSell:
-        null,
-
-      dealerBuy:
-        null,
-
-      dealerSell:
-        null,
+      dealerBuy: null,
+      dealerSell: null,
 
       source:
         'DATA SOURCE N/A'
@@ -1886,8 +2540,9 @@ app.get(
   }
 );
 
+
 /* =========================
-   Static
+   STATIC
 ========================= */
 
 app.use(
@@ -1898,11 +2553,6 @@ app.use(
     )
   )
 );
-
-/*
-  Express 5 不使用 app.get('*')
-  改用 app.use 避免路由錯誤
-*/
 
 app.use(
   (req, res) =>
@@ -1915,10 +2565,15 @@ app.use(
     )
 );
 
+
+/* =========================
+   START
+========================= */
+
 app.listen(
   PORT,
   () =>
     console.log(
-      `IAN STOCK API 13.0.0 listening on ${PORT}`
+      `IAN STOCK API 14.0.0 listening on ${PORT}`
     )
 );
