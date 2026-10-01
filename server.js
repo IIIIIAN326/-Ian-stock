@@ -36,7 +36,6 @@ const NAME = {
   '2881':'富邦金',
   '2912':'統一超',
   '3035':'智原',
-
   'NVDA':'NVIDIA',
   'AAPL':'Apple',
   'MSFT':'Microsoft',
@@ -65,7 +64,7 @@ async function fetchJSON(url, ms = 10000) {
     const r = await fetch(url, {
       signal: c.signal,
       headers: {
-        'User-Agent': 'IAN-STOCK/14.0',
+        'User-Agent': 'IAN-STOCK/12.0',
         'Accept': 'application/json'
       }
     });
@@ -840,47 +839,13 @@ async function getQuotes(
    歷史資料
 ========================= */
 
-async function history(
-  s,
-  range = '3mo',
-  interval = '1d'
-) {
-
-  s = normSymbol(s);
-
-  const key =
-    `h:${s}:${range}:${interval}`;
-
-  const old =
-    HISTORY_CACHE.get(key);
-
-  if (
-    old &&
-    Date.now() -
-      old.t <
-      HISTORY_TTL
-  ) {
-    return old.v;
-  }
-
-  const j =
-    await fetchJSON(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-        yahooSymbol(s)
-      )}?range=${encodeURIComponent(
-        range
-      )}&interval=${encodeURIComponent(
-        interval
-      )}&events=div%2Csplits`
-    );
+function parseYahooHistory(j) {
 
   const r =
     j?.chart?.result?.[0];
 
   if (!r) {
-    throw new Error(
-      '沒有歷史資料'
-    );
+    return [];
   }
 
   const q =
@@ -891,8 +856,7 @@ async function history(
 
   for (
     let i = 0;
-    i <
-    (r.timestamp || []).length;
+    i < (r.timestamp || []).length;
     i++
   ) {
 
@@ -908,8 +872,7 @@ async function history(
       a.push({
 
         time:
-          r.timestamp[i] *
-          1000,
+          r.timestamp[i] * 1000,
 
         open:
           Number(
@@ -936,6 +899,188 @@ async function history(
     }
   }
 
+  return a;
+}
+
+async function twseHistory(
+  s,
+  months = 3
+) {
+
+  if (
+    !/^\d{4}$/.test(s)
+  ) {
+    return [];
+  }
+
+  const now =
+    new Date();
+
+  const out = [];
+  const seen = new Set();
+
+  for (
+    let k = 0;
+    k < months;
+    k++
+  ) {
+
+    const d =
+      new Date(
+        now.getFullYear(),
+        now.getMonth() - k,
+        1
+      );
+
+    const date =
+      `${d.getFullYear()}${String(
+        d.getMonth() + 1
+      ).padStart(2, '0')}01`;
+
+    try {
+
+      const j =
+        await fetchJSON(
+          `https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${date}&stockNo=${encodeURIComponent(
+            s
+          )}&_=${Date.now()}`,
+          12000
+        );
+
+      for (
+        const row of
+        (j?.data || [])
+      ) {
+
+        if (
+          !Array.isArray(row) ||
+          row.length < 7
+        ) {
+          continue;
+        }
+
+        const p =
+          String(
+            row[0] || ''
+          )
+            .split('/')
+            .map(Number);
+
+        const close =
+          num(row[6]);
+
+        if (
+          p.length !== 3 ||
+          close == null
+        ) {
+          continue;
+        }
+
+        const time =
+          new Date(
+            p[0] + 1911,
+            p[1] - 1,
+            p[2]
+          ).getTime();
+
+        if (
+          !Number.isFinite(time) ||
+          seen.has(time)
+        ) {
+          continue;
+        }
+
+        seen.add(time);
+
+        out.push({
+
+          time,
+
+          open:
+            num(row[3]),
+
+          high:
+            num(row[4]),
+
+          low:
+            num(row[5]),
+
+          close,
+
+          volume:
+            num(row[1]) || 0
+        });
+      }
+
+    } catch {}
+  }
+
+  return out.sort(
+    (a, b) =>
+      a.time - b.time
+  );
+}
+
+async function history(
+  s,
+  range = '3mo',
+  interval = '1d'
+) {
+
+  s =
+    normSymbol(s);
+
+  const key =
+    `h:${s}:${range}:${interval}`;
+
+  const old =
+    HISTORY_CACHE.get(key);
+
+  if (
+    old &&
+    Date.now() -
+      old.t <
+      HISTORY_TTL
+  ) {
+    return old.v;
+  }
+
+  let a = [];
+
+  try {
+
+    const j =
+      await fetchJSON(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+          yahooSymbol(s)
+        )}?range=${encodeURIComponent(
+          range
+        )}&interval=${encodeURIComponent(
+          interval
+        )}&events=div%2Csplits`,
+        12000
+      );
+
+    a =
+      parseYahooHistory(j);
+
+  } catch {}
+
+  if (
+    !a.length &&
+    /^\d{4}$/.test(s) &&
+    interval === '1d'
+  ) {
+
+    a =
+      await twseHistory(
+        s,
+        range === '1mo'
+          ? 2
+          : 4
+      );
+  }
+
   HISTORY_CACHE.set(
     key,
     {
@@ -954,20 +1099,14 @@ async function history(
 
 function sma(v, n) {
 
-  if (
-    v.length < n
-  ) {
-    return null;
-  }
-
-  return (
-    v
-      .slice(-n)
-      .reduce(
-        (a, b) => a + b,
-        0
-      ) / n
-  );
+  return v.length < n
+    ? null
+    : v
+        .slice(-n)
+        .reduce(
+          (a, b) => a + b,
+          0
+        ) / n;
 }
 
 function emaSeries(v, n) {
@@ -1028,7 +1167,8 @@ function rsi(
   ) {
 
     const d =
-      v[i] - v[i - 1];
+      v[i] -
+      v[i - 1];
 
     if (d >= 0) {
       g += d;
@@ -1037,8 +1177,11 @@ function rsi(
     }
   }
 
-  let ag = g / n;
-  let al = l / n;
+  let ag =
+    g / n;
+
+  let al =
+    l / n;
 
   for (
     let i = n + 1;
@@ -1047,7 +1190,8 @@ function rsi(
   ) {
 
     const d =
-      v[i] - v[i - 1];
+      v[i] -
+      v[i - 1];
 
     ag =
       (
@@ -1091,6 +1235,7 @@ function atr(
 
     tr.push(
       Math.max(
+
         a[i].high -
           a[i].low,
 
@@ -1103,6 +1248,7 @@ function atr(
           a[i].low -
             a[i - 1].close
         )
+
       )
     );
   }
@@ -1260,23 +1406,30 @@ function indicators(a) {
   };
 }
 
+
+/* =========================
+   AI Analysis
+========================= */
+
 function analysis(
   ind,
   last
 ) {
 
   let score = null;
-  let trend = '資料不足';
-  let momentum = '資料不足';
-  let risk = '資料不足';
+
+  let trend =
+    '資料不足';
+
+  let momentum =
+    '資料不足';
+
+  let risk =
+    '資料不足';
 
   if (
-    Number.isFinite(
-      ind.RSI
-    ) &&
-    Number.isFinite(
-      ind.MA20
-    ) &&
+    Number.isFinite(ind.RSI) &&
+    Number.isFinite(ind.MA20) &&
     Number.isFinite(last)
   ) {
 
@@ -1355,19 +1508,28 @@ function analysis(
     risk,
 
     note:
-      'AI Score 為技術資料的資訊性摘要，不是投資保證。',
+      'AI Score 為技術資料的資訊性摘要，不是投資建議。',
 
     ...ind
   };
 }
+
+
+/* =========================
+   Stock Detail
+========================= */
 
 async function stock(s) {
 
   const q =
     await getQuote(s);
 
-  const h =
-    await history(s);
+  let h = [];
+
+  try {
+    h =
+      await history(s);
+  } catch {}
 
   const ind =
     indicators(h);
@@ -1382,13 +1544,16 @@ async function stock(s) {
       analysis(
         ind,
         q?.price
-      )
+      ),
+
+    timestamp:
+      Date.now()
   };
 }
 
 
 /* =========================
-   API STATUS
+   STATUS
 ========================= */
 
 app.get(
@@ -1442,8 +1607,6 @@ app.get(
 
         '/api/live',
 
-        '/api/ai/daily',
-
         '/api/institutional/:symbol',
 
         '/api/status'
@@ -1454,7 +1617,7 @@ app.get(
 
 
 /* =========================
-   QUOTE API
+   QUOTE
 ========================= */
 
 app.get(
@@ -1557,17 +1720,29 @@ app.get(
             req.params.symbol
           ),
 
-        data
+        data,
+
+        timestamp:
+          Date.now()
       });
 
     } catch {
 
-      res
-        .status(502)
-        .json({
-          error:
-            '歷史資料暫時無法取得'
-        });
+      res.json({
+
+        symbol:
+          normSymbol(
+            req.params.symbol
+          ),
+
+        data: [],
+
+        timestamp:
+          Date.now(),
+
+        warning:
+          '歷史資料來源暫時不可用'
+      });
     }
   }
 );
@@ -1607,24 +1782,40 @@ app.get(
           analysis(
             ind,
             q?.price
-          )
+          ),
+
+        timestamp:
+          Date.now()
       });
 
     } catch {
 
-      res
-        .status(502)
-        .json({
-          error:
-            '技術分析暫時無法取得'
-        });
+      res.json({
+
+        symbol:
+          normSymbol(
+            req.params.symbol
+          ),
+
+        analysis:
+          analysis(
+            indicators([]),
+            null
+          ),
+
+        timestamp:
+          Date.now(),
+
+        warning:
+          '技術分析資料不足'
+      });
     }
   }
 );
 
 
 /* =========================
-   STOCK DETAIL
+   STOCK
 ========================= */
 
 app.get(
@@ -1641,12 +1832,24 @@ app.get(
 
     } catch {
 
-      res
-        .status(502)
-        .json({
-          error:
-            '股票資料暫時無法取得'
-        });
+      res.json({
+
+        quote: null,
+
+        history: [],
+
+        analysis:
+          analysis(
+            indicators([]),
+            null
+          ),
+
+        timestamp:
+          Date.now(),
+
+        warning:
+          '部分行情來源暫時不可用'
+      });
     }
   }
 );
@@ -1993,7 +2196,8 @@ async function stooqIndex(
           {
             headers: {
               'User-Agent':
-                'IAN-STOCK/14.0',
+                'IAN-STOCK/13.0',
+
               'Accept':
                 'text/csv'
             },
