@@ -93,35 +93,41 @@ function changeStockPage(delta){stockPage+=delta;renderStocks();window.scrollTo(
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
+function setMarket(priceId,changeId,q){
+  if(!q)return;
+  $(priceId).textContent=fmt(q.price);
+  $(changeId).textContent=pct(q.changePct);
+  $(changeId).className=cls(q.changePct);
+}
 async function loadMarket(){
-  // 只修改首頁四個市場指數；其他程式保持原樣。
-  let a=[];
-  try{
-    const j=await api('/api/market?ts='+Date.now());
-    a=j.data||[];
-  }catch(e){}
-
+  // 市場四格：先立即顯示最近收盤值，再用後端資料覆蓋；避免 API 慢或格式異常時整頁變 --。
   const fallback={
+    '^TWII':{symbol:'^TWII',price:47940.13,changePct:0.65},
     '^GSPC':{symbol:'^GSPC',price:7651.54,changePct:-0.25},
     '^IXIC':{symbol:'^IXIC',price:26861.06,changePct:0.24},
     '^DJI':{symbol:'^DJI',price:50908.79,changePct:-0.86}
   };
+  const apply=(data)=>{
+    const a=Array.isArray(data)?data:[];
+    const get=sym=>a.find(x=>x&&String(x.symbol)===sym)||fallback[sym];
+    const tw=get('^TWII'),sp=get('^GSPC'),na=get('^IXIC'),dw=get('^DJI');
+    setMarket('taiex','taiexCh',tw);
+    setMarket('sp','spCh',sp);
+    setMarket('nasdaq','nasdaqCh',na);
+    setMarket('dow','dowCh',dw);
+    $('heroTW').textContent=fmt(tw.price);
+    $('heroUS').textContent=fmt(sp.price);
+    $('liveText').textContent='LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  };
 
-  // 後端有資料就用後端；缺少的美股三個指數才補最近收盤值。
-  ['^GSPC','^IXIC','^DJI'].forEach(sym=>{
-    if(!a.some(x=>x&&x.symbol===sym)) a.push(fallback[sym]);
-  });
-
-  const tw=marketValue(a,'^TWII');
-  const sp=marketValue(a,'^GSPC');
-  const na=marketValue(a,'^IXIC');
-  const dw=marketValue(a,'^DJI');
-  setMarket('taiex','taiexCh',tw);
-  setMarket('sp','spCh',sp);
-  setMarket('nasdaq','nasdaqCh',na);
-  setMarket('dow','dowCh',dw);
-  if(tw)$('heroTW').textContent=fmt(tw.price);
-  if(sp)$('heroUS').textContent=fmt(sp.price);
+  // 先顯示資料，不等待 Render。
+  apply([]);
+  try{
+    const j=await api('/api/market?ts='+Date.now());
+    apply(j&&j.data);
+  }catch(e){
+    // 後端暫時無法取得時，保留上面的最近收盤值。
+  }
 }
 
 async function loadQuotes(){
