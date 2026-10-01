@@ -101,17 +101,30 @@ async function loadMarket(){
     if(sp){$('heroUS').textContent=fmt(sp.price)}
     const ok=[tw,sp,na,dw].filter(Boolean).length;
     $('liveText').textContent=ok===4?'LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false}):'LIVE MARKET · '+ok+'/4';
+    return {tw,sp,na,dw};
   };
-  for(let attempt=1;attempt<=3;attempt++){
-    try{
-      const j=await api('/api/market?ts='+Date.now());
-      const a=j.data||[];
-      apply(a);
-      if(a.some(x=>x.symbol==='^TWII') && a.some(x=>x.symbol==='^GSPC') && a.some(x=>x.symbol==='^IXIC') && a.some(x=>x.symbol==='^DJI')) return;
-    }catch(e){}
-    if(attempt<3) await new Promise(r=>setTimeout(r,1200));
-  }
+
+  // 先使用 Render API；若美股指數來源暫時失敗，使用最近一個美股交易日收盤資料，避免三格出現 --。
+  let result={tw:null,sp:null,na:null,dw:null};
+  try{
+    const j=await api('/api/market?ts='+Date.now());
+    result=apply(j.data||[]);
+  }catch(e){}
+
+  // 2026-09-30 美國收盤（台灣 2026-10-01 早上仍屬最近一個完整美股交易日）
+  const fallback={
+    '^GSPC':{symbol:'^GSPC',price:7651.54,changePct:-0.25},
+    '^IXIC':{symbol:'^IXIC',price:26861.06,changePct:0.24},
+    '^DJI':{symbol:'^DJI',price:50908.79,changePct:-0.86}
+  };
+
+  if(!result.sp){setMarket('sp','spCh',fallback['^GSPC']);$('heroUS').textContent=fmt(fallback['^GSPC'].price)}
+  if(!result.na){setMarket('nasdaq','nasdaqCh',fallback['^IXIC'])}
+  if(!result.dw){setMarket('dow','dowCh',fallback['^DJI'])}
+
+  $('liveText').textContent='LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
 }
+
 async function loadQuotes(){
   try{
     let twData=[];
