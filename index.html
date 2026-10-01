@@ -111,7 +111,7 @@ async function loadMarket(){
     '^TWII':{symbol:'^TWII',price:47940.13,changePct:0.65},
     '^GSPC':{symbol:'^GSPC',price:7651.54,changePct:-0.25},
     '^IXIC':{symbol:'^IXIC',price:26861.06,changePct:0.24},
-    '^DJI':{symbol:'^DJI',price:50908.79,changePct:-0.86}
+    '^DJI':{symbol:'^DJI',price:50906.05,changePct:-0.86}
   };
 
   // 後端有資料就用後端；缺少的美股三個指數才補最近收盤值。
@@ -141,7 +141,7 @@ async function loadQuotes(){
       try{
         const r=await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',{cache:'no-store'});
         const a=await r.json();
-        twData=a.map(x=>({symbol:String(x.Code||''),name:x.Name||x.Code,market:'TW',price:Number(String(x.ClosingPrice||'').replace(/,/g,''))||null,changePct:Number(String(x.Change||'').replace(/,/g,''))||0,open:Number(String(x.OpeningPrice||'').replace(/,/g,''))||null,high:Number(String(x.HighestPrice||'').replace(/,/g,''))||null,low:Number(String(x.LowestPrice||'').replace(/,/g,''))||null,volume:Number(String(x.TradeVolume||'').replace(/,/g,''))||0})).filter(x=>x.symbol&&x.price!=null);
+        twData=a.map(x=>{const price=Number(String(x.ClosingPrice||'').replace(/,/g,''));const ch=Number(String(x.Change||'').replace(/,/g,''));const prev=Number.isFinite(price)&&Number.isFinite(ch)?price-ch:null;return {symbol:String(x.Code||''),name:x.Name||x.Code,market:'TW',price:Number.isFinite(price)?price:null,changePct:prev?ch/prev*100:0,open:Number(String(x.OpeningPrice||'').replace(/,/g,''))||null,high:Number(String(x.HighestPrice||'').replace(/,/g,''))||null,low:Number(String(x.LowestPrice||'').replace(/,/g,''))||null,volume:Number(String(x.TradeVolume||'').replace(/,/g,''))||0}}).filter(x=>x.symbol&&x.price!=null);
       }catch(_){twData=[]}
     }
     const usSymbols=STOCKS.filter(x=>x[2]==='US').map(x=>x[0]).join(',');
