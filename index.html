@@ -93,8 +93,25 @@ function changeStockPage(delta){stockPage+=delta;renderStocks();window.scrollTo(
 function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.changePct>0?u++:q.changePct<0?d++:f++);const t=a.length||1;$('upBar').style.width=u/t*100+'%';$('downBar').style.width=d/t*100+'%';$('breadTotal').textContent=a.length+' 支';$('upText').textContent='上漲 '+u;$('flatText').textContent='平盤 '+f;$('downText').textContent='下跌 '+d;}
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
-async function loadMarket(){try{const j=await api('/api/market');const a=j.data||[];const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);if(tw){$('heroTW').textContent=fmt(tw.price)}if(sp){$('heroUS').textContent=fmt(sp.price)}}catch(e){}}
-function setMarket(v,c,q){if(!q)return;$(v).textContent=fmt(q.price);$(c).textContent=pct(q.changePct);$(c).className=cls(q.changePct);}
+async function loadMarket(){
+  const apply=(a)=>{
+    const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');
+    setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);
+    if(tw){$('heroTW').textContent=fmt(tw.price)}
+    if(sp){$('heroUS').textContent=fmt(sp.price)}
+    const ok=[tw,sp,na,dw].filter(Boolean).length;
+    $('liveText').textContent=ok===4?'LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false}):'LIVE MARKET · '+ok+'/4';
+  };
+  for(let attempt=1;attempt<=3;attempt++){
+    try{
+      const j=await api('/api/market?ts='+Date.now());
+      const a=j.data||[];
+      apply(a);
+      if(a.some(x=>x.symbol==='^TWII') && a.some(x=>x.symbol==='^GSPC') && a.some(x=>x.symbol==='^IXIC') && a.some(x=>x.symbol==='^DJI')) return;
+    }catch(e){}
+    if(attempt<3) await new Promise(r=>setTimeout(r,1200));
+  }
+}
 async function loadQuotes(){
   try{
     let twData=[];
