@@ -94,35 +94,34 @@ function renderBread(){const a=Object.values(Q);let u=0,d=0,f=0;a.forEach(q=>q.c
 function renderTicker(){const a=STOCKS.filter(s=>Q[s[0]]).slice(0,22);const html=a.map(s=>{const q=Q[s[0]];return `<div class="tick"><b>${s[0]}</b> <span class="${cls(q.changePct)}">${fmt(q.price)} ${pct(q.changePct)}</span></div>`}).join('');$('ticker').innerHTML=html+html;}
 function marketValue(data,sym){const q=(data||[]).find(x=>x.symbol===sym);return q}
 async function loadMarket(){
-  const apply=(a)=>{
-    const tw=marketValue(a,'^TWII'),sp=marketValue(a,'^GSPC'),na=marketValue(a,'^IXIC'),dw=marketValue(a,'^DJI');
-    setMarket('taiex','taiexCh',tw);setMarket('sp','spCh',sp);setMarket('nasdaq','nasdaqCh',na);setMarket('dow','dowCh',dw);
-    if(tw){$('heroTW').textContent=fmt(tw.price)}
-    if(sp){$('heroUS').textContent=fmt(sp.price)}
-    const ok=[tw,sp,na,dw].filter(Boolean).length;
-    $('liveText').textContent=ok===4?'LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false}):'LIVE MARKET · '+ok+'/4';
-    return {tw,sp,na,dw};
-  };
-
-  // 先使用 Render API；若美股指數來源暫時失敗，使用最近一個美股交易日收盤資料，避免三格出現 --。
-  let result={tw:null,sp:null,na:null,dw:null};
+  // 只修改首頁四個市場指數；其他程式保持原樣。
+  let a=[];
   try{
     const j=await api('/api/market?ts='+Date.now());
-    result=apply(j.data||[]);
+    a=j.data||[];
   }catch(e){}
 
-  // 2026-09-30 美國收盤（台灣 2026-10-01 早上仍屬最近一個完整美股交易日）
   const fallback={
     '^GSPC':{symbol:'^GSPC',price:7651.54,changePct:-0.25},
     '^IXIC':{symbol:'^IXIC',price:26861.06,changePct:0.24},
     '^DJI':{symbol:'^DJI',price:50908.79,changePct:-0.86}
   };
 
-  if(!result.sp){setMarket('sp','spCh',fallback['^GSPC']);$('heroUS').textContent=fmt(fallback['^GSPC'].price)}
-  if(!result.na){setMarket('nasdaq','nasdaqCh',fallback['^IXIC'])}
-  if(!result.dw){setMarket('dow','dowCh',fallback['^DJI'])}
+  // 後端有資料就用後端；缺少的美股三個指數才補最近收盤值。
+  ['^GSPC','^IXIC','^DJI'].forEach(sym=>{
+    if(!a.some(x=>x&&x.symbol===sym)) a.push(fallback[sym]);
+  });
 
-  $('liveText').textContent='LIVE MARKET '+new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  const tw=marketValue(a,'^TWII');
+  const sp=marketValue(a,'^GSPC');
+  const na=marketValue(a,'^IXIC');
+  const dw=marketValue(a,'^DJI');
+  setMarket('taiex','taiexCh',tw);
+  setMarket('sp','spCh',sp);
+  setMarket('nasdaq','nasdaqCh',na);
+  setMarket('dow','dowCh',dw);
+  if(tw)$('heroTW').textContent=fmt(tw.price);
+  if(sp)$('heroUS').textContent=fmt(sp.price);
 }
 
 async function loadQuotes(){
